@@ -296,14 +296,14 @@ function buildPDFHTML(results, query, synthesis) {
 
     var pagesHTML = '';
 
-    // PAGE 1: COVER
+    // PAGE 1: COVER WITH LOGO
     pagesHTML += `
     <div class="pdf-page" style="width: 816px; height: 1056px; background: #1a3a2e; color: white; text-align: center; position: relative; font-family: -apple-system, sans-serif;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 120px 40px 60px 40px;">
-            <div style="font-size: 48px; font-weight: 800; margin-bottom: 20px;">Model Marshal</div>
+        <div style="max-width: 600px; margin: 0 auto; padding: 80px 40px 60px 40px;">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAACWCAYAAADwkd5lAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABx0RVh0U29mdHdhcmUAQWRvYmUgRmlyZXdvcmtzIENTNui8sowAAAAWdEVYdENyZWF0aW9uIFRpbWUAMDMvMTQvMTkVqX2nAAACE0lEQVR4nO3TQQ0AIAwEsYv+OycdXBBIIOvnQABgZu5dAADwjIEAgBgIAIiBxUAmV9Zv0/z0AAAAASUVORK5CYII=" alt="Upstate AI" style="width: 300px; margin-bottom: 40px;">
             <div style="width: 80px; height: 4px; background: #ff6900; margin: 30px auto;"></div>
-            <h1 style="font-size: 32px; font-weight: 700; margin: 30px 0; color: #f7f4ea;">AI Response Comparison Report</h1>
-            <div style="font-size: 16px; color: rgba(247,244,234,0.8); margin: 40px 0;">${escapeHtml(query)}</div>
+            <h1 style="font-size: 38px; font-weight: 700; margin: 30px 0; color: #f7f4ea; letter-spacing: -0.02em;">Model Marshal Report</h1>
+            <div style="font-size: 16px; color: rgba(247,244,234,0.8); margin: 40px 0; line-height: 1.6;">${escapeHtml(query)}</div>
             <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 60px;">${date}</div>
         </div>
         <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: rgba(247,244,234,0.8); border-top: 1px solid rgba(247,244,234,0.2); padding-top: 10px;">
@@ -313,10 +313,19 @@ function buildPDFHTML(results, query, synthesis) {
         </div>
     </div>`;
 
-    // PAGES 2+: MODEL RESPONSES
+    // PAGES 2+: MODEL RESPONSES WITH BAR GRAPHS
     for (var i = 0; i < results.length; i++) {
         var result = results[i];
         var pageNum = i + 2;
+        
+        // Extract scores from text
+        var scores = result.scores || '';
+        var specMatch = scores.match(/Specificity:\s*(\d+)/);
+        var actMatch = scores.match(/Actionability:\s*(\d+)/);
+        var depthMatch = scores.match(/Domain Depth:\s*(\d+)/);
+        var specScore = specMatch ? parseInt(specMatch[1]) : 7;
+        var actScore = actMatch ? parseInt(actMatch[1]) : 7;
+        var depthScore = depthMatch ? parseInt(depthMatch[1]) : 7;
         
         pagesHTML += `
         <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
@@ -325,13 +334,38 @@ function buildPDFHTML(results, query, synthesis) {
                     <h2 style="margin: 0; font-size: 24px; font-weight: 700;">${escapeHtml(result.shortId || result.model)}</h2>
                 </div>
                 
-                <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 20px 0 10px 0;">Response</h3>
-                <div style="background: #f7f4ea; border-left: 4px solid #ff6900; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
-                    <div style="color: #2a2a2a; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(result.response)}</div>
+                <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 20px 0 10px 0;">Evaluation Scores</h3>
+                <div style="background: #f9f9f9; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Specificity</div>
+                        <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
+                            <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${specScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
+                                <span style="color: white; font-size: 12px; font-weight: 700;">${specScore}/10</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Actionability</div>
+                        <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
+                            <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${actScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
+                                <span style="color: white; font-size: 12px; font-weight: 700;">${actScore}/10</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Domain Depth</div>
+                        <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
+                            <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${depthScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
+                                <span style="color: white; font-size: 12px; font-weight: 700;">${depthScore}/10</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 20px 0 10px 0;">Evaluation</h3>
-                <div style="color: #555; font-size: 13px; line-height: 1.8; white-space: pre-wrap;">${escapeHtml(result.scores)}</div>
+                <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 20px 0 10px 0;">Response</h3>
+                <div style="background: #f7f4ea; border-left: 4px solid #ff6900; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+                    <div style="color: #2a2a2a; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(result.response)}</div>
+                </div>
             </div>
             <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #e0e0e0; padding-top: 10px;">
                 <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
@@ -341,20 +375,29 @@ function buildPDFHTML(results, query, synthesis) {
         </div>`;
     }
 
-    // LAST PAGE: SYNTHESIS
+    // LAST PAGE: SYNTHESIS WITH QR CODE
     pagesHTML += `
     <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
         <div style="padding: 50px 40px;">
             <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
                 <h2 style="margin: 0; font-size: 24px; font-weight: 700;">Human Synthesis</h2>
             </div>
-            <div style="color: #2a2a2a; font-size: 14px; line-height: 1.8; white-space: pre-wrap;">${escapeHtml(synthesis || 'No synthesis provided.')}</div>
+            <div style="color: #2a2a2a; font-size: 14px; line-height: 1.8; white-space: pre-wrap; margin-bottom: 40px;">${escapeHtml(synthesis || 'No synthesis provided.')}</div>
             
-            <div style="background: #f7f4ea; padding: 24px; border-radius: 8px; margin-top: 60px; border: 2px solid #ff6900;">
-                <h3 style="color: #1a3a2e; font-size: 18px; font-weight: 700; margin: 0 0 15px 0;">Contact Us</h3>
-                <p style="margin: 8px 0; color: #2a2a2a; font-size: 14px;"><strong>Email:</strong> ben@up-state-ai.com</p>
-                <p style="margin: 8px 0; color: #2a2a2a; font-size: 14px;"><strong>Phone:</strong> (315) 313-5998</p>
-                <p style="margin: 8px 0; color: #2a2a2a; font-size: 14px;"><strong>Web:</strong> up-state-ai.com</p>
+            <div style="background: #f7f4ea; padding: 28px; border-radius: 8px; border: 2px solid #ff6900; display: flex; align-items: center; justify-content: space-between;">
+                <div style="flex: 1;">
+                    <h3 style="color: #1a3a2e; font-size: 20px; font-weight: 700; margin: 0 0 20px 0;">Let's Talk</h3>
+                    <p style="margin: 10px 0; color: #2a2a2a; font-size: 14px; line-height: 1.6;">Book a free 30-minute consultation to discuss your AI strategy and next steps.</p>
+                    <p style="margin: 12px 0 6px 0; color: #2a2a2a; font-size: 14px;"><strong>Email:</strong> ben@up-state-ai.com</p>
+                    <p style="margin: 6px 0; color: #2a2a2a; font-size: 14px;"><strong>Phone:</strong> (315) 313-5998</p>
+                    <p style="margin: 6px 0; color: #2a2a2a; font-size: 14px;"><strong>Web:</strong> up-state-ai.com</p>
+                </div>
+                <div style="flex-shrink: 0; margin-left: 30px;">
+                    <div style="background: white; padding: 12px; border-radius: 8px; border: 3px solid #ff6900; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
+                        <div style="text-align: center; margin-top: 8px; font-size: 11px; color: #666; font-weight: 600;">Scan to visit</div>
+                    </div>
+                </div>
             </div>
         </div>
         <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #e0e0e0; padding-top: 10px;">
