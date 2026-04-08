@@ -18,12 +18,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         status.innerHTML = 'Inferring system prompt...';
 
-        // Models to query
+        // Models to query — confirmed working OpenRouter IDs
         const models = [
-            { name: 'Grok', id: 'x-ai/grok-beta' },
-            { name: 'Claude Sonnet', id: 'anthropic/claude-3.5-sonnet-20240620' },
+            { name: 'Claude Sonnet', id: 'anthropic/claude-sonnet-4.6' },
             { name: 'ChatGPT', id: 'openai/gpt-4o' },
-            { name: 'Gemini', id: 'google/gemini-pro-1.5' }
+            { name: 'Gemini', id: 'google/gemini-2.0-flash-001' },
+            { name: 'Grok', id: 'x-ai/grok-3' }
         ];
 
         const results = [];
@@ -48,7 +48,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (!response.ok) {
-                throw new Error(`API error: ${response.statusText}`);
+                const errBody = await response.text();
+                throw new Error(`API error ${response.status}: ${errBody}`);
             }
 
             const data = await response.json();
