@@ -320,7 +320,7 @@ function generatePDF(results, query, systemPrompt, synthesis, userInfo) {
 
 function buildPDFHTML(results, query, synthesis, userInfo, qrDataUrl) {
     var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    var totalPages = results.length + 3;
+    var totalPages = results.length + 4;  // cover + summary + 5 models + synthesis + about = 9
 
     function escapeHtml(text) {
         var div = document.createElement('div');
@@ -363,36 +363,6 @@ pagesHTML += `
             <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAACWCAYAAADwkd5lAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABx0RVh0U29mdHdhcmUAQWRvYmUgRmlyZXdvcmtzIENTNui8sowAAAAWdEVYdENyZWF0aW9uIFRpbWUAMDMvMTQvMTkVqX2nAAACE0lEQVR4nO3TQQ0AIAwEsYv+OycdXBBIIOvnQABgZu5dAADwjIEAgBgIAIiBxUAmV9Zv0/z0AAAAASUVORK5CYII=" alt="Upstate AI" style="width: 300px; margin-bottom: 40px;">
             <div style="width: 80px; height: 4px; background: #ff6900; margin: 30px auto;"></div>
             <h1 style="font-size: 38px; font-weight: 700; margin: 30px 0; color: #f7f4ea; letter-spacing: -0.02em;">Model Marshal<br>Report</h1>
-<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Name: ${escapeHtml(userInfo.name)}</div>
-<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Company: ${escapeHtml(userInfo.company)}</div>
-<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Email: ${escapeHtml(userInfo.email)}</div>
-<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Domain: ${escapeHtml(userInfo.domain)}</div>
-<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Title: ${escapeHtml(userInfo.title)}</div>
-            <div style="font-size: 16px; color: rgba(247,244,234,0.8); margin: 40px 0; line-height: 1.6;">${escapeHtml(query)}</div>
-            <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 60px;">${date}</div>
-        </div>
-        <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: rgba(247,244,234,0.8); border-top: 1px solid rgba(247,244,234,0.2); padding-top: 10px;">
-            <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
-            <div style="float: right;">Page 1 of ${totalPages}</div>
-            <div style="clear: both;"></div>
-        </div>
-    </div>`;
-    
-    // PAGE 2: ANALYSIS SUMMARY
-    pagesHTML += `
-    <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
-        <div style="padding: 50px 40px;">
-            <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
-                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">Analysis Summary</h2>
-            </div>
-            
-            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 0 0 10px 0;">Query</h3>
-            <div style="background: #f7f4ea; padding: 15px; border-left: 4px solid #ff6900; border-radius: 4px; margin-bottom: 25px;">
-                <p style="margin: 0; color: #2a2a2a; font-size: 13px; line-height: 1.6;">${escapeHtml(query)}</p>
-            </div>
-            
-            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 25px 0 10px 0;">Models Evaluated</h3>
-            <div style="font-size: 12px; line-height: 1.7; color: #2a2a2a; margin-bottom: 20px;">
                 <p style="margin: 8px 0;"><strong>Claude Sonnet 4.6:</strong> Anthropic's latest model, excelling at nuanced analysis, following complex instructions, and producing well-structured outputs with strong reasoning capabilities.</p>
                 <p style="margin: 8px 0;"><strong>GPT-5.4:</strong> OpenAI's flagship model with exceptional performance across diverse tasks, structured problem-solving, and comprehensive knowledge synthesis.</p>
                 <p style="margin: 8px 0;"><strong>Grok-4-Fast:</strong> X.AI's model optimized for speed and directness, providing practical insights with minimal latency and straightforward communication style.</p>
@@ -573,7 +543,7 @@ pagesHTML += `
                 </div>
                 <div style="float: right; width: 160px; text-align: center;">
                     <div style="background: white; padding: 10px; border-radius: 6px; display: inline-block;">
-                        <img id="qr-code-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
+                        <img crossOrigin="anonymous" id="qr-code-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
                     </div>
                 </div>
                 <div style="clear: both;"></div>
