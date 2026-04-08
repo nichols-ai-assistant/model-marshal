@@ -46,6 +46,7 @@
             font-size: 0.9rem;
             margin-bottom: 1rem;
         }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         textarea { min-height: 80px; resize: vertical; }
         .btn {
             background: #238636;
@@ -75,13 +76,6 @@
         .model-card h3 { font-size: 0.95rem; color: #3ecf8e; margin-bottom: 0.5rem; }
         .model-card .scores { color: #ffd700; font-size: 0.8rem; margin: 0.5rem 0; }
         .model-card .response { color: #c9d1d9; font-size: 0.85rem; line-height: 1.5; }
-        .model-card .system-prompt { color: #8b949e; font-size: 0.75rem; margin-top: 0.5rem; }
-        .section-label { font-size: 0.75rem; color: #58a6ff; text-transform: uppercase; letter-spacing: 0.05em; margin: 1rem 0 0.5rem; }
-        #pdfPreview { background: #161b22; border: 1px solid #2d333b; border-radius: 8px; padding: 1rem; margin-top: 1rem; display: none; }
-        #pdfPreview h2 { font-size: 1rem; color: #3ecf8e; margin-bottom: 1rem; }
-        .qr-row { display: flex; gap: 2rem; margin-top: 1rem; }
-        .qr-row .info { flex: 1; }
-        .qr-row img { height: 120px; }
         .footer { text-align: center; color: #484f58; font-size: 0.75rem; margin-top: 2rem; }
     </style>
 </head>
@@ -97,7 +91,33 @@
         </div>
 
         <div class="card">
-            <h2>1. Configure</h2>
+            <h2>1. Your Information</h2>
+            <div class="row">
+                <div>
+                    <label for="name">Name</label>
+                    <input type="text" id="name" placeholder="Jane Smith">
+                </div>
+                <div>
+                    <label for="title">Title</label>
+                    <input type="text" id="title" placeholder="VP of Operations">
+                </div>
+            </div>
+            <div class="row">
+                <div>
+                    <label for="company">Company</label>
+                    <input type="text" id="company" placeholder="Acme Manufacturing">
+                </div>
+                <div>
+                    <label for="domain">Company Domain</label>
+                    <input type="text" id="domain" placeholder="acmemfg.com">
+                </div>
+            </div>
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="jane@acmemfg.com">
+        </div>
+
+        <div class="card">
+            <h2>2. Configure</h2>
             <label for="apiKey">OpenRouter API Key</label>
             <input type="password" id="apiKey" placeholder="sk-or-v1-..." value="">
 
@@ -106,21 +126,19 @@
         </div>
 
         <div class="card">
-            <h2>2. Query Models</h2>
+            <h2>3. Query Models</h2>
             <button id="dispatchBtn" class="btn">Dispatch to Models</button>
-            <div id="status" class="status-info">Ready. Enter your question and click Dispatch.</div>
+            <div id="status" class="status-info">Ready. Enter your info and click Dispatch.</div>
         </div>
 
         <div id="modelsContainer"></div>
 
         <div class="card" id="synthesisCard" style="display:none;">
-            <h2>3. Synthesize</h2>
+            <h2>4. Synthesize</h2>
             <label for="synthesis">Your Synthesis / Recommendation</label>
             <textarea id="synthesis" placeholder="Write your synthesis here after reviewing the model responses..."></textarea>
             <button id="generatePdfBtn" class="btn btn-secondary">Generate PDF Report</button>
         </div>
-
-        <div id="pdfPreview"></div>
 
         <p class="footer">Model Marshal — by Upstate AI</p>
     </div>
