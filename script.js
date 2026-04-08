@@ -67,7 +67,7 @@ Suggest a concise system prompt starting with "You are an expert in [domain]" or
 
 Output only the system prompt, nothing else.`;
 
-            return await callModel('anthropic/claude-3.5-sonnet-20240620', [{ role: 'user', content: inferencePrompt }]);
+            return await callModel('anthropic/claude-sonnet-4.6', [{ role: 'user', content: inferencePrompt }]);
         }
 
         // Function to score response with Sonnet
@@ -86,7 +86,7 @@ Tone: X/10 - [1-sentence excerpt]
 Authoritativeness: Y/10 - [1-sentence excerpt]
 Objectivity: Z/10 - [1-sentence excerpt]`;
 
-            return await callModel('anthropic/claude-3.5-sonnet-20240620', [{ role: 'user', content: scoringPrompt }]);
+            return await callModel('anthropic/claude-sonnet-4.6', [{ role: 'user', content: scoringPrompt }]);
         }
 
         try {
