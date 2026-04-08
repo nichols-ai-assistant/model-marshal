@@ -18,12 +18,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         status.innerHTML = 'Inferring system prompt...';
 
-        // Models to query — confirmed working OpenRouter IDs
+        // Models to query
         const models = [
             { name: 'Claude Sonnet', id: 'anthropic/claude-sonnet-4.6' },
-            { name: 'ChatGPT', id: 'openai/gpt-4o' },
-            { name: 'Gemini', id: 'google/gemini-2.0-flash-001' },
-            { name: 'Grok', id: 'x-ai/grok-3' }
+            { name: 'ChatGPT', id: 'openai/gpt-5.4' },
+            { name: 'Grok', id: 'x-ai/grok-4.1-fast' },
+            { name: 'Gemini', id: 'google/gemini-3-flash-preview' },
+            { name: 'Llama', id: 'meta-llama/llama-3.3-70b-instruct' }
         ];
 
         const results = [];
