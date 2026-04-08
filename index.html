@@ -3,83 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Model Marshal</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        label {
-            display: block;
-            margin-top: 10px;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 8px;
-            margin-top: 5px;
-        }
-        button {
-            margin-top: 15px;
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .model-card {
-            width: 45%;
-            border: 1px solid #ccc;
-            padding: 15px;
-            margin-bottom: 20px;
-            background-color: #f9f9f9;
-        }
-        .model-card h3 {
-            margin-top: 0;
-        }
-        .response-section, .scores-section {
-            margin-bottom: 10px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #status {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            min-height: 20px;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css"> <!-- Assuming we have a stylesheet for styles -->
+    <title>Model Marshal v1.0.0</title>
 </head>
 <body>
-    <h1>Model Marshal Local Web App</h1>
-    <p>This is a standalone app to query multiple AI models with inferred system prompts, preview responses and scores side-by-side, add a synthesis summary, and generate a PDF report.</p>
-    <form id="queryForm">
-        <label for="apiKey">API Key:</label>
-        <input type="password" id="apiKey" placeholder="Enter your API key" required>
-        <br><br>
-        <label for="query">Query:</label>
-        <textarea id="query" rows="4" cols="50" placeholder="Enter your query here..." required></textarea>
-        <br><br>
-        <button type="submit">Dispatch to Models</button>
-    </form>
-    <div id="status"></div>
-
-    <div id="preview" style="display: none;">
-        <h2>Responses Preview</h2>
-        <div id="modelsContainer" class="models-container" style="display: flex; flex-wrap: wrap; gap: 20px;">
-            <!-- Dynamic content -->
-        </div>
-        <label for="synthesis">Ben's Synthesis:</label>
-        <textarea id="synthesis" rows="4" cols="50" placeholder="Human ethical interpretation: [Enter your summary here]"></textarea>
-        <br><br>
-        <button id="generatePdf">Generate & Export PDF</button>
-    </div>
-
+    <header>
+        <h1>Model Marshal v1.0.0</h1>
+        <form id="queryForm">
+            <label for="apiKey">API Key:</label>
+            <input type="text" id="apiKey" required>
+            <label for="query">Query:</label>
+            <textarea id="query" required></textarea>
+            <button type="submit">Dispatch to Models</button>
+        </form>
+        <div id="status"></div>
+    </header>
+    <div id="output"></div>
     <script src="script.js"></script>
 </body>
 </html>
