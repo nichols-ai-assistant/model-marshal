@@ -287,7 +287,7 @@ function generatePDF(results, query, systemPrompt, synthesis, userInfo) {
                 if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
             });
         }, 3500);
-    });
+    }
 }
 
 function buildPDFHTML(results, query, synthesis, userInfo) {
