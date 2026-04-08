@@ -375,32 +375,110 @@ function buildPDFHTML(results, query, synthesis) {
         </div>`;
     }
 
-    // LAST PAGE: SYNTHESIS WITH QR CODE
+    // SYNTHESIS PAGE WITH COMPARISON TABLE
+    var synthesisPageNum = totalPages - 1;
     pagesHTML += `
     <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
         <div style="padding: 50px 40px;">
             <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
                 <h2 style="margin: 0; font-size: 24px; font-weight: 700;">Human Synthesis</h2>
             </div>
-            <div style="color: #2a2a2a; font-size: 14px; line-height: 1.8; white-space: pre-wrap; margin-bottom: 40px;">${escapeHtml(synthesis || 'No synthesis provided.')}</div>
             
-            <div style="background: #f7f4ea; padding: 28px; border-radius: 8px; border: 2px solid #ff6900; display: flex; align-items: center; justify-content: space-between;">
-                <div style="flex: 1;">
-                    <h3 style="color: #1a3a2e; font-size: 20px; font-weight: 700; margin: 0 0 20px 0;">Let's Talk</h3>
-                    <p style="margin: 10px 0; color: #2a2a2a; font-size: 14px; line-height: 1.6;">Book a free 30-minute consultation to discuss your AI strategy and next steps.</p>
-                    <p style="margin: 12px 0 6px 0; color: #2a2a2a; font-size: 14px;"><strong>Email:</strong> ben@up-state-ai.com</p>
-                    <p style="margin: 6px 0; color: #2a2a2a; font-size: 14px;"><strong>Phone:</strong> (315) 313-5998</p>
-                    <p style="margin: 6px 0; color: #2a2a2a; font-size: 14px;"><strong>Web:</strong> up-state-ai.com</p>
-                </div>
-                <div style="flex-shrink: 0; margin-left: 30px;">
-                    <div style="background: white; padding: 12px; border-radius: 8px; border: 3px solid #ff6900; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
-                        <div style="text-align: center; margin-top: 8px; font-size: 11px; color: #666; font-weight: 600;">Scan to visit</div>
-                    </div>
-                </div>
-            </div>
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 0 0 15px 0;">Model Comparison</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;">
+                <thead>
+                    <tr style="background: #1a3a2e; color: white;">
+                        <th style="padding: 10px; text-align: left; font-weight: 700;">Model</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Specificity</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Actionability</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Domain Depth</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    for (var ti = 0; ti < results.length; ti++) {
+        var tr = results[ti];
+        var bgColor = ti % 2 === 0 ? '#f7f4ea' : 'white';
+        var tScores = tr.scores || '';
+        var tSpec = (tScores.match(/Specificity:\s*(\d+)/) || [])[1] || '-';
+        var tAct = (tScores.match(/Actionability:\s*(\d+)/) || [])[1] || '-';
+        var tDepth = (tScores.match(/Domain Depth:\s*(\d+)/) || [])[1] || '-';
+        
+        pagesHTML += `
+                    <tr style="background: ${bgColor};">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #1a3a2e;">${escapeHtml(tr.shortId || tr.model)}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: #2a2a2a;">${tSpec}/10</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: #2a2a2a;">${tAct}/10</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: #2a2a2a;">${tDepth}/10</td>
+                    </tr>`;
+    }
+    
+    pagesHTML += `
+                </tbody>
+            </table>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 30px 0 15px 0;">Analysis</h3>
+            <div style="color: #2a2a2a; font-size: 13px; line-height: 1.8; white-space: pre-wrap;">${escapeHtml(synthesis || 'No synthesis provided.')}</div>
         </div>
         <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #e0e0e0; padding-top: 10px;">
+            <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
+            <div style="float: right;">Page ${synthesisPageNum} of ${totalPages}</div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>`;
+    
+    // FINAL PAGE: ABOUT UPSTATE AI (matching readiness assessment)
+    pagesHTML += `
+    <div class="pdf-page" style="width: 816px; height: 1056px; background: #f7f4ea; position: relative; font-family: -apple-system, sans-serif;">
+        <div style="padding: 50px 40px;">
+            <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
+                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">About Upstate AI</h2>
+            </div>
+            
+            <p style="color: #1a3a2e; font-size: 15px; font-weight: 700; margin: 0 0 12px 0;">Upstate AI helps Central New York businesses harness artificial intelligence.</p>
+            <p style="color: #2a2a2a; font-size: 13px; line-height: 1.7; margin: 0 0 30px 0;">We work with manufacturers, healthcare organizations, and professional services firms to identify high-impact AI use cases, design implementation roadmaps, and deliver hands-on training. Our engagement model starts with a one-day workshop to assess readiness and ends with ongoing advisory support as AI initiatives scale.</p>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 30px 0 15px 0;">Services</h3>
+            <table style="width: 100%; border-collapse: separate; border-spacing: 12px;">
+                <tr>
+                    <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Workshop</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">Half-day interactive session for leadership teams covering industry-specific use cases and hands-on opportunity scoring.</div>
+                    </td>
+                    <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Audit</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">Full operational analysis with data maturity evaluation and prioritized roadmap with ROI estimates.</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Execution</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">End-to-end project management from technical planning through vendor evaluation to deployment and training.</div>
+                    </td>
+                    <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Advisory</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">Monthly strategic check-ins, on-call guidance for AI decisions, and quarterly opportunity reviews.</div>
+                    </td>
+                </tr>
+            </table>
+            
+            <div style="background: #1a3a2e; padding: 20px; border-radius: 8px; margin-top: 30px; overflow: hidden;">
+                <div style="float: left; width: calc(100% - 180px);">
+                    <h3 style="color: white; font-size: 16px; font-weight: 700; margin: 0 0 12px 0;">Let's Talk</h3>
+                    <p style="color: #f7f4ea; font-size: 12px; line-height: 1.6; margin: 0 0 12px 0;">Book a free 30-minute consultation to discuss your AI readiness and next steps.</p>
+                    <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Email: ben@up-state-ai.com</p>
+                    <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Phone: (315) 313-5998</p>
+                    <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Web: up-state-ai.com</p>
+                </div>
+                <div style="float: right; width: 160px; text-align: center;">
+                    <div style="background: white; padding: 10px; border-radius: 6px; display: inline-block;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
+                    </div>
+                </div>
+                <div style="clear: both;"></div>
+            </div>
+        </div>
+        <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #d0d0d0; padding-top: 10px;">
             <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
             <div style="float: right;">Page ${totalPages} of ${totalPages}</div>
             <div style="clear: both;"></div>
