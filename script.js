@@ -1,344 +1,39 @@
-// Model Marshal Script
-// Standalone JS for local web app with inferred system prompts, preview, and synthesis
 
-const TEST_MODE = true; // Set false to query real models
-
-document.addEventListener('DOMContentLoaded', function() {
-    var form = document.getElementById('queryForm');
-    var status = document.getElementById('status');
-    var previewDiv = document.getElementById('preview');
-
-    // Pre-populate preview in test mode
-    if (TEST_MODE) {
-        previewDiv.style.display = 'block';
-        document.getElementById('query').value = 'How should a mid-size manufacturer approach AI adoption?';
-        document.getElementById('synthesis').value = 'Key insight: All models agree on data infrastructure as the foundation, but diverge on implementation priority. Grok is most direct, Gemini most specific, GPT most structured, Llama most privacy-conscious, and Claude most balanced. Recommended approach: start with predictive maintenance (high frequency data, clear ROI) before expanding to broader transformation.';
-        populateTestData();
-        status.innerHTML = 'TEST MODE — Using sample data. Set TEST_MODE=false to query real models.';
-    }
-
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        var apiKey = document.getElementById('apiKey').value;
-        var query = document.getElementById('query').value;
-
-        if (!apiKey || !query) {
-            status.innerHTML = 'Please enter API key and query.';
-            return;
-        }
-
-        if (TEST_MODE) {
-            status.innerHTML = 'TEST MODE active — using sample data. Set TEST_MODE=false to query real models.';
-            return;
-        }
-
-        status.innerHTML = 'Inferring system prompt...';
-
-        var models = [
-            { name: 'Claude Sonnet', id: 'anthropic/claude-sonnet-4.6' },
-            { name: 'ChatGPT', id: 'openai/gpt-5.4' },
-            { name: 'Grok', id: 'x-ai/grok-4.1-fast' },
-            { name: 'Gemini', id: 'google/gemini-3-flash-preview' },
-            { name: 'Llama', id: 'meta-llama/llama-3.3-70b-instruct' }
-        ];
-
-        var results = [];
-        var systemPrompt = '';
-
-        async function callModel(modelId, messages) {
-            var response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + apiKey,
-                    'Content-Type': 'application/json',
-                    'HTTP-Referer': window.location.origin,
-                    'X-Title': 'Model Marshal'
-                },
-                body: JSON.stringify({
-                    model: modelId,
-                    messages: messages,
-                    temperature: 0.7,
-                    max_tokens: 1000
-                })
-            });
-            if (!response.ok) {
-                var errBody = await response.text();
-                throw new Error('API error ' + response.status + ': ' + errBody);
-            }
-            var data = await response.json();
-            return data.choices[0].message.content.trim();
-        }
-
-        // Model-specific prompt templates tailored to each model's strengths
-        function getModelPrompt(modelName, domain) {
-            var prompts = {
-                'Claude Sonnet': 'You are an expert consultant with deep experience in ' + domain + '. Provide nuanced, well-reasoned analysis that considers multiple perspectives, ethical implications, and practical constraints. Emphasize actionable recommendations grounded in real-world implementation challenges.',
-                'ChatGPT': 'You are a strategic consultant specializing in ' + domain + '. Structure your response using established frameworks and methodologies. Provide comprehensive analysis that covers key dimensions systematically. Include specific examples and quantifiable metrics where possible.',
-                'Grok': 'You are a no-nonsense operator in ' + domain + '. Cut through marketing hype and provide direct, practical advice. Focus on what actually works based on field experience. Be skeptical of unproven approaches and emphasize measurable results.',
-                'Gemini': 'You are a technical expert in ' + domain + ' with deep knowledge of implementation details and emerging capabilities. Provide specific technical guidance including timelines, budget considerations, and integration requirements. Cite relevant capabilities and tools.',
-                'Llama': 'You are an expert in ' + domain + ' with focus on open-source solutions and data sovereignty. Emphasize approaches that maintain data privacy and technical control. Consider on-premise deployment options and vendor independence.'
-            };
-            return prompts[modelName] || 'You are an expert consultant specializing in ' + domain + '.';
-        }
-
-        async function generateSystemPrompt(q) {
-            var inferencePrompt = 'Analyze this user query: "' + q + '"\nInfer the main domain or topic (e.g., manufacturing operations, business strategy, technology implementation, etc.).\nOutput only the domain/topic in 2-4 words, nothing else.';
-            return await callModel('anthropic/claude-sonnet-4.6', [{ role: 'user', content: inferencePrompt }]);
-        }
-
-        async function scoreResponse(responseText, modelName) {
-            var scoringPrompt = 'Score the following AI response on a scale of 1-10 for:\n1. Specificity: concrete vs. generic (1=vague platitudes, 10=specific actionable details)\n2. Actionability: clear next steps (1=abstract discussion, 10=clear executable steps)\n3. Domain Depth: expert-level insights (1=surface-level, 10=deep domain expertise)\nProvide scores and a brief justification.\nResponse to score: "' + responseText.replace(/"/g, '\\"') + '" from ' + modelName + '\nFormat as:\nSpecificity: X/10 - [justification]\nActionability: Y/10 - [justification]\nDomain Depth: Z/10 - [justification]';
-            return await callModel('anthropic/claude-sonnet-4.6', [{ role: 'user', content: scoringPrompt }]);
-        }
-
-        try {
-            var domain = await generateSystemPrompt(query);
-            status.innerHTML = 'Dispatching to models...';
-
-            for (var i = 0; i < models.length; i++) {
-                var model = models[i];
-                var modelPrompt = getModelPrompt(model.name, domain);
-                status.innerHTML = 'Querying ' + model.name + '...';
-                var messages = [
-                    { role: 'system', content: modelPrompt },
-                    { role: 'user', content: query }
-                ];
-                var response = await callModel(model.id, messages);
-                status.innerHTML = 'Scoring ' + model.name + ' response...';
-                var scores = await scoreResponse(response, model.name);
-                results.push({ model: model.name, response: response, scores: scores, systemPrompt: modelPrompt });
-            }
-
-            buildPreview(results, query, systemPrompt);
-            status.innerHTML = 'Preview ready. Add your synthesis and generate PDF.';
-
-        } catch (err) {
-            status.innerHTML = 'Error: ' + err.message;
-            console.error(err);
-        }
-    });
-
-    // Wire up PDF button even in test mode
-    var generateBtn = document.getElementById('generatePdf');
-    generateBtn.addEventListener('click', function() {
-        var query = document.getElementById('query').value;
-        var synthesis = document.getElementById('synthesis').value;
-        var results = gatherResultsFromDOM();
-        var systemPrompt = document.querySelector('.model-card .prompt-section');
-        var spText = systemPrompt ? systemPrompt.innerText.replace('System Prompt: ', '').replace(/\n/g, ' ') : '';
-        generatePDF(results, query, spText, synthesis);
-    });
-});
-
-function populateTestData() {
-    var testResults = [
-        {
-            model: 'Claude Sonnet 4.6',
-            shortId: 'Sonnet 4.6',
-            response: 'AI adoption in manufacturing requires a phased approach that balances operational disruption with measurable ROI. Start with non-critical workflows to establish baselines before expanding to mission-critical processes. Key focus areas should include predictive maintenance, quality control automation, and supply chain optimization.\n\nA practical first step: identify your highest-frequency, highest-variance process. That is where ML models have the most to learn from and where you will see the fastest returns. Avoid trying to boil the ocean — pick one use case, prove it out, then expand methodically.',
-            scores: 'Specificity: 9/10 - Concrete process recommendations with clear examples\nActionability: 9/10 - Specific starting point identified (high-frequency, high-variance)\nDomain Depth: 8/10 - Manufacturing-specific terminology and context',
-            systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
-        },
-        {
-            model: 'GPT-5.4',
-            shortId: 'GPT-5.4',
-            response: 'For manufacturing leaders, AI readiness hinges on three pillars: data infrastructure maturity, workforce adaptability, and executive commitment. Companies should assess their current state across these dimensions before selecting specific AI use cases.\n\nPriority should be given to high-frequency, high-variance processes where ML can provide immediate pattern recognition benefits. The assessment framework aligns with McKinsey\'s three-horizon model: automate existing processes first (Horizon 1), then optimize (Horizon 2), then transform (Horizon 3). Budget considerations typically range from $50K for scoped pilots to $500K+ for enterprise-wide deployments.',
-            scores: 'Specificity: 7/10 - Framework-based but less concrete detail\nActionability: 7/10 - Three-horizon model provided, budget ranges given\nDomain Depth: 7/10 - McKinsey framework cited, solid but less field-specific',
-            systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
-        },
-        {
-            model: 'Grok 4.1 Fast',
-            shortId: 'Grok 4.1',
-            response: 'Straight talk: most manufacturing AI projects fail because companies skip the boring groundwork. Get your data right first. Then pick one pain point with clear ROI. Run it as an experiment, not a program. Scale only what proves itself.\n\nAvoid the consulting pitches until you have your own house in order. The best manufacturers treat this as an engineering problem, not a strategy presentation. Set specific measurable targets, hold people accountable, and do not move to the next phase until the current one has numbers.',
-            scores: 'Specificity: 8/10 - Direct, practical advice with clear priorities\nActionability: 9/10 - Explicit steps: data first, pick one pain point, prove it\nDomain Depth: 8/10 - Field operator perspective, anti-consultant stance',
-            systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
-        },
-        {
-            model: 'Gemini 3 Flash',
-            shortId: 'Gemini 3',
-            response: 'Gemini notes strong alignment between AI capabilities and manufacturing needs in three areas: computer vision for defect detection, time-series forecasting for demand planning, and natural language interfaces for maintenance documentation.\n\nImplementation timelines vary from 6 weeks for packaged solutions to 6 months for custom integrations. Budget ranges from $50K to $500K depending on scope. Key risk factor: data quality — most manufacturers discover their historical data is not ML-ready and needs 3-6 months of cleanup before any model training can begin.',
-            scores: 'Specificity: 8/10 - Three specific AI areas identified with use cases\nActionability: 7/10 - Timeline and budget ranges provided\nDomain Depth: 8/10 - Technical capability knowledge, data quality insight',
-            systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
-        },
-        {
-            model: 'Llama 3.3 70B',
-            shortId: 'Llama 3.3',
-            response: 'Open-source models like Llama offer a compelling alternative for manufacturers concerned about data privacy. Running LLMs on-premise means sensitive operational data never leaves the facility.\n\nThe trade-off is internal ML expertise required for fine-tuning and deployment. Best suited for companies with strong data science teams already on staff. For organizations without this capability, fine-tuning-as-a-service providers can bridge the gap, though this adds dependency considerations.',
-            scores: 'Specificity: 7/10 - Open-source alternative clearly positioned\nActionability: 6/10 - Trade-offs discussed but fewer concrete steps\nDomain Depth: 7/10 - Privacy and sovereignty focus, technical deployment detail',
-            systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
-        }
-    ];
-
-    var html = '';
-    for (var i = 0; i < testResults.length; i++) {
-        var r = testResults[i];
-        html += '<div class="model-card"><h3>' + r.shortId + '</h3>' +
-            '<div class="prompt-section"><strong>System Prompt:</strong> ' + r.systemPrompt + '</div>' +
-            '<div class="response-section"><strong>Response:</strong><br>' + r.response.replace(/\n/g, '<br>') + '</div>' +
-            '<div class="scores-section"><strong>Scores:</strong><br>' + r.scores.replace(/\n/g, '<br>') + '</div></div>';
-    }
-    document.getElementById('modelsContainer').innerHTML = html;
-}
-
-function buildPreview(results, query, systemPrompt) {
-    var html = '';
-    for (var i = 0; i < results.length; i++) {
-        var result = results[i];
-        html += '<div class="model-card"><h3>' + result.model + '</h3>' +
-            '<div class="prompt-section"><strong>System Prompt:</strong> ' + result.systemPrompt + '</div>' +
-            '<div class="response-section"><strong>Response:</strong><br>' + result.response.replace(/\n/g, '<br>') + '</div>' +
-            '<div class="scores-section"><strong>Scores:</strong><br>' + result.scores.replace(/\n/g, '<br>') + '</div></div>';
-    }
-    document.getElementById('modelsContainer').innerHTML = html;
-    document.getElementById('synthesis').value = 'Human ethical interpretation: [Enter your summary here]';
-    document.getElementById('preview').style.display = 'block';
-}
-
-function gatherResultsFromDOM() {
-    var cards = document.querySelectorAll('.model-card');
-    var results = [];
-    for (var i = 0; i < cards.length; i++) {
-        var card = cards[i];
-        var modelName = card.querySelector('h3') ? card.querySelector('h3').innerText : '';
-        var responseEl = card.querySelector('.response-section');
-        var scoresEl = card.querySelector('.scores-section');
-        var promptEl = card.querySelector('.prompt-section');
-        var responseText = responseEl ? responseEl.innerText.replace('Response:\n', '').replace(/<br>/g, '\n') : '';
-        var scoresText = scoresEl ? scoresEl.innerText.replace('Scores:\n', '').replace(/<br>/g, '\n') : '';
-        var promptText = promptEl ? promptEl.innerText.replace('System Prompt: ', '').replace(/<br>/g, '\n') : '';
-        results.push({
-            model: modelName,
-            shortId: modelName,
-            response: responseText,
-            scores: scoresText,
-            systemPrompt: promptText
-        });
-    }
-    return results;
-}
-
-// ============================================================
-// PDF Generation — Upstate AI report style
-// Pages: Cover | Summary | Model Responses | Synthesis | About
-// ============================================================
-
-var COLORS = {
-    forest:    [26,  58,  46],
-    orange:    [255, 105,   0],
-    cream:     [247, 244, 234],
-    white:     [255, 255, 255],
-    darkText:  [40,   40,  40],
-    mutedText: [120, 120, 120]
-};
-
-function addFooter(doc, pageNum, totalPages) {
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.3);
-    doc.line(20, 284, 196, 284);
-    doc.setFontSize(8);
-    doc.setTextColor(160, 160, 160);
-    doc.text('Upstate AI  |  ben@up-state-ai.com  |  (315) 313-5998  |  up-state-ai.com', 20, 289);
-    doc.text('Page ' + pageNum + ' of ' + totalPages, 196, 289, { align: 'right' });
-}
-
-function newPage(doc) {
-    doc.addPage();
-    return 20;
-}
-
-// New high-quality PDF generation using HTML + html2canvas approach
-// This replaces the old jsPDF drawing method
-
-function generatePDF(results, query, systemPrompt, synthesis) {
-    var pdfContainer = buildPDFHTML(results, query, systemPrompt, synthesis);
-    
-    // Create processing overlay
-    var overlay = document.createElement('div');
-    overlay.id = 'pdf-overlay';
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1a3a2e; z-index: 10000;';
-    overlay.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: -apple-system, sans-serif;">' +
-        '<div style="width: 56px; height: 56px; border: 4px solid rgba(255,105,0,0.25); border-top-color: #ff6900; border-radius: 50%; animation: pdfspin 0.8s linear infinite; margin: 0 auto 28px;"></div>' +
-        '<div style="font-size: 22px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.02em;">Generating Your Report</div>' +
-        '<div style="font-size: 14px; color: rgba(247,244,234,0.6);">Preparing your Model Marshal comparison report...</div>' +
-        '</div>' +
-        '<style>@keyframes pdfspin { to { transform: rotate(360deg); } }</style>';
-    document.body.appendChild(overlay);
-
-    // Give browser time to render
-    setTimeout(function() {
-        html2canvas(pdfContainer, { scale: 2, useCORS: true, allowTaint: true }).then(function(canvas) {
-            var jsPDFLib = window.jspdf.jsPDF;
-            if (jsPDFLib) {
-                var pdf = new jsPDFLib({ unit: 'px', format: [816, 1056], orientation: 'portrait' });
-                var pageHeight = 1056;
-                var imgData = canvas.toDataURL('image/jpeg', 0.98);
-                var imgHeight = (canvas.height * 816) / canvas.width;
-                var heightLeft = imgHeight;
-                var position = 0;
-
-                pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
-                heightLeft -= pageHeight;
-
-                while (heightLeft > 0) {
-                    position -= pageHeight;
-                    pdf.addPage([816, 1056]);
-                    pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
-                    heightLeft -= pageHeight;
-                }
-
-                var ts = new Date().toISOString().slice(0, 10);
-                pdf.save('model-marshal-report-' + ts + '.pdf');
-                document.getElementById('status').innerHTML = 'PDF generated: model-marshal-report-' + ts + '.pdf';
-            }
-            // Clean up
-            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        }).catch(function(err) {
-            console.error('PDF generation error:', err);
-            alert('PDF generation failed: ' + err.message);
-            document.getElementById('status').innerHTML = 'PDF generation failed';
-            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        });
-    }, 3500);
-}
-
-function buildPDFHTML(results, query, systemPrompt, synthesis) {
+async function buildPDFHTML(results, query, systemPrompt, synthesis, additionalData) {
     var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    
+
     // Create temporary container
     var container = document.createElement('div');
     container.id = 'pdf-report';
     container.style.cssText = 'position: absolute; left: 0; top: 0; width: 816px; z-index: 9999;';
 
-    // Helper function to escape HTML
-    function escapeHtml(text) {
-        var div = document.createElement('div');
-        div.textContent = text || '';
-        return div.innerHTML;
-    }
-
     // Build cover page
     var coverHTML = `
         <div class="pdf-page" style="background: #1a3a2e; color: white; text-align: center; padding: 120px 60px;">
-            <div style="font-size: 48px; font-weight: 800; margin-bottom: 20px; letter-spacing: -0.02em;">upstate</div>
-            <div style="width: 80px; height: 4px; background: #ff6900; margin: 0 auto 50px;"></div>
-            <h1 style="font-size: 32px; font-weight: 700; margin: 0 0 30px; color: white;">Model Marshal</h1>
-            <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 20px; color: #f7f4ea;">AI Model Comparison Report</h2>
-            <div style="width: 120px; height: 2px; background: #ff6900; margin: 40px auto;"></div>
-            <p style="font-size: 16px; line-height: 1.6; color: rgba(247,244,234,0.8); max-width: 600px; margin: 0 auto 40px;">${escapeHtml(query)}</p>
-            <p style="font-size: 14px; color: rgba(247,244,234,0.6);">Generated ${date}</p>
-            <div style="position: absolute; bottom: 60px; left: 0; right: 0;">
-                <div style="font-size: 18px; font-weight: 700; color: #ff6900; margin-bottom: 10px;">PUT AI TO WORK</div>
-                <div style="font-size: 12px; color: rgba(247,244,234,0.7);">ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
-            </div>
+            <div style="font-size: 48px; font-weight: 800; margin-bottom: 20px;">upstate</div>
+            <h1 style="font-size: 32px;">Model Marshal</h1>
+            <h2 style="font-size: 20px;">AI Model Comparison Report</h2>
+            <p>Query: ${escapeHtml(query)}</p>
+            <p>Generated on ${date}</p>
+        </div>
+    `;
+
+    // Input form HTML
+    var inputFormHTML = `
+        <div class="pdf-page" style="background: white; padding: 60px;">
+            <h2 style="font-size: 24px; color: #1a3a2e;">Input Data</h2>
+            <p>Name: ${escapeHtml(additionalData.name)}</p>
+            <p>Business: ${escapeHtml(additionalData.business)}</p>
+            <p>Domain URL: ${escapeHtml(additionalData.domainUrl)}</p>
+            <p>Role: ${escapeHtml(additionalData.role)}</p>
+            <p>Additional Data: ${escapeHtml(additionalData.additionalData)}</p>
         </div>
     `;
 
     // Build methodology page
     var methodHTML = `
         <div class="pdf-page" style="background: white; padding: 60px;">
-            <h2 style="font-size: 24px; font-weight: 700; color: #1a3a2e; margin-bottom: 30px; border-bottom: 3px solid #ff6900; padding-bottom: 10px;">How Model Marshal Works</h2>
+            <h2 style="font-size: 24px; font-weight: 700; color: #1a3a2e; margin-bottom: 30px;">How Model Marshal Works</h2>
             
             <div style="margin-bottom: 30px;">
                 <h3 style="font-size: 18px; font-weight: 600; color: #1a3a2e; margin-bottom: 15px;">1. Query Analysis</h3>
@@ -356,153 +51,51 @@ function buildPDFHTML(results, query, systemPrompt, synthesis) {
                     <li><strong>Llama:</strong> Open-source focus and data sovereignty</li>
                 </ul>
             </div>
-
-            <div style="margin-bottom: 30px;">
-                <h3 style="font-size: 18px; font-weight: 600; color: #1a3a2e; margin-bottom: 15px;">3. Response Scoring</h3>
-                <p style="font-size: 14px; line-height: 1.7; color: #333; margin-bottom: 10px;">Each response is independently evaluated by Claude Sonnet on three dimensions:</p>
-                <ul style="font-size: 13px; line-height: 1.8; color: #555; padding-left: 20px;">
-                    <li><strong>Specificity (1-10):</strong> Concrete details vs. vague platitudes</li>
-                    <li><strong>Actionability (1-10):</strong> Clear executable steps vs. abstract discussion</li>
-                    <li><strong>Domain Depth (1-10):</strong> Expert-level insights vs. surface-level</li>
-                </ul>
-            </div>
-
-            <div style="position: absolute; bottom: 40px; left: 60px; right: 60px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                <div style="float: left; font-size: 11px; font-weight: 700; color: #1a3a2e;">Model Marshal Report</div>
-                <div style="float: right; font-size: 11px; color: #666;">Page 2</div>
-                <div style="clear: both;"></div>
-            </div>
         </div>
     `;
 
     // Build results pages
     var resultsHTML = '';
     results.forEach(function(r, idx) {
-        var specScore = 7, actScore = 7, depthScore = 7;
         var scoreText = r.scores || '';
-        var sm = scoreText.match(/Specificity:\s*(\d+)/);
-        var am = scoreText.match(/Actionability:\s*(\d+)/);
-        var dm = scoreText.match(/Domain Depth:\s*(\d+)/);
-        if (sm) specScore = parseInt(sm[1]);
-        if (am) actScore = parseInt(am[1]);
-        if (dm) depthScore = parseInt(dm[1]);
-
         resultsHTML += `
             <div class="pdf-page" style="background: white; padding: 60px;">
                 <div style="background: #1a3a2e; color: white; padding: 20px; margin: -60px -60px 30px; border-bottom: 4px solid #ff6900;">
                     <h2 style="font-size: 28px; font-weight: 700; margin: 0;">${escapeHtml(r.model)}</h2>
                 </div>
 
-                <div style="display: flex; gap: 15px; margin-bottom: 30px;">
-                    <div style="flex: 1; background: ${specScore >= 7 ? '#e8f5e9' : '#fff3e0'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${specScore >= 7 ? '#4caf50' : '#ff9800'};">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Specificity</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #1a3a2e;">${specScore}/10</div>
-                    </div>
-                    <div style="flex: 1; background: ${actScore >= 7 ? '#e8f5e9' : '#fff3e0'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${actScore >= 7 ? '#4caf50' : '#ff9800'};">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Actionable</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #1a3a2e;">${actScore}/10</div>
-                    </div>
-                    <div style="flex: 1; background: ${depthScore >= 7 ? '#e8f5e9' : '#fff3e0'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${depthScore >= 7 ? '#4caf50' : '#ff9800'};">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Depth</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #1a3a2e;">${depthScore}/10</div>
-                    </div>
-                </div>
+                <h3 style="font-size: 20px; margin: 0;">Scores</h3>
+                <p style="font-size: 16px; color: #555;">
+                    Specificity: ${scoreText.match(/Specificity:\s*(\d+)/)[1]}/10<br>
+                    Actionability: ${scoreText.match(/Actionability:\s*(\d+)/)[1]}/10<br>
+                    Depth: ${scoreText.match(/Domain Depth:\s*(\d+)/)[1]}/10
+                </p>
 
-                <h3 style="font-size: 16px; font-weight: 600; color: #1a3a2e; margin-bottom: 15px;">Response</h3>
-                <div style="font-size: 13px; line-height: 1.8; color: #333; background: #f7f4ea; padding: 20px; border-radius: 8px; max-height: 600px; overflow: hidden;">
-                    ${escapeHtml(r.response).replace(/\n/g, '<br>')}
-                </div>
-
+                <h3 style="font-size: 16px; margin: 0;">Response</h3>
+                <div style="background: #f7f4ea; padding: 20px; border-radius: 8px;">${escapeHtml(r.response)}</div>
                 <div style="position: absolute; bottom: 40px; left: 60px; right: 60px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
                     <div style="float: left; font-size: 11px; font-weight: 700; color: #1a3a2e;">Model Marshal Report</div>
                     <div style="float: right; font-size: 11px; color: #666;">Page ${3 + idx}</div>
-                    <div style="clear: both;"></div>
                 </div>
             </div>
         `;
     });
 
-    // Build about page
+    // Add QR Code
+    var qrCodeHTML = `<div class='pdf-page' style='background: white; padding: 60px;'><h3>Scan to Connect</h3><img src='https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://up-state-ai.com' alt='QR Code' /></div>`;
+
+    // Build About page
     var aboutHTML = `
-        <div class="pdf-page" style="background: white; padding: 60px;">
-            <div style="background: #1a3a2e; padding: 15px; margin: -60px -60px 40px;">
-                <h2 style="font-size: 20px; font-weight: 700; margin: 0; color: white;">ABOUT UPSTATE AI</h2>
-            </div>
-
-            <p style="font-size: 14px; font-weight: 600; line-height: 1.8; color: #1a3a2e; margin-bottom: 15px;">
-                We help businesses in manufacturing, professional services, and logistics build practical AI systems that solve real problems.
-            </p>
-            <p style="font-size: 13px; line-height: 1.7; color: #555; margin-bottom: 30px;">
-                No hype, no generic advice. Just honest assessments, clear implementation plans, and hands-on support from people who understand both the technology and your industry.
-            </p>
-
-            <div style="background: #f7f4ea; padding: 20px; border-left: 4px solid #ff6900; margin-bottom: 30px;">
-                <h3 style="font-size: 14px; font-weight: 700; color: #1a3a2e; margin: 0 0 10px;">Ben Nichols, Founder</h3>
-                <p style="font-size: 12px; line-height: 1.7; color: #555; margin: 0;">
-                    AI professor at Syracuse University and consultant to manufacturers, professional services firms, and technology companies. Built and deployed machine learning systems in production environments for over a decade.
-                </p>
-            </div>
-
-            <h3 style="font-size: 16px; font-weight: 600; color: #1a3a2e; margin-bottom: 20px;">Our Services</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 40px;">
-                <div style="background: #f7f4ea; padding: 15px; border-radius: 8px;">
-                    <h4 style="font-size: 13px; font-weight: 700; color: #1a3a2e; margin: 0 0 8px;">AI Workshop</h4>
-                    <p style="font-size: 11px; line-height: 1.6; color: #666; margin: 0;">Half-day interactive session for leadership teams covering industry-specific use cases and hands-on opportunity scoring.</p>
-                </div>
-                <div style="background: #f7f4ea; padding: 15px; border-radius: 8px;">
-                    <h4 style="font-size: 13px; font-weight: 700; color: #1a3a2e; margin: 0 0 8px;">AI Audit</h4>
-                    <p style="font-size: 11px; line-height: 1.6; color: #666; margin: 0;">Full operational analysis with data maturity evaluation and prioritized roadmap with ROI estimates.</p>
-                </div>
-                <div style="background: #f7f4ea; padding: 15px; border-radius: 8px;">
-                    <h4 style="font-size: 13px; font-weight: 700; color: #1a3a2e; margin: 0 0 8px;">AI Execution</h4>
-                    <p style="font-size: 11px; line-height: 1.6; color: #666; margin: 0;">End-to-end project management from technical planning through vendor evaluation to deployment and training.</p>
-                </div>
-                <div style="background: #f7f4ea; padding: 15px; border-radius: 8px;">
-                    <h4 style="font-size: 13px; font-weight: 700; color: #1a3a2e; margin: 0 0 8px;">AI Advisory</h4>
-                    <p style="font-size: 11px; line-height: 1.6; color: #666; margin: 0;">Monthly strategic check-ins, on-call guidance for AI decisions, and quarterly opportunity reviews.</p>
-                </div>
-            </div>
-
-            <div style="background: #1a3a2e; padding: 30px; border-radius: 8px; color: white;">
-                <h3 style="font-size: 18px; font-weight: 700; margin: 0 0 15px;">Let's Talk</h3>
-                <p style="font-size: 13px; line-height: 1.7; margin: 0 0 15px; color: rgba(247,244,234,0.9);">
-                    Book a free 30-minute consultation to discuss your AI readiness and next steps.
-                </p>
-                <div style="font-size: 12px; line-height: 1.8; color: rgba(247,244,234,0.8);">
-                    <div>Email: ben@up-state-ai.com</div>
-                    <div>Phone: (315) 313-5998</div>
-                    <div>Web: up-state-ai.com</div>
-                </div>
-            </div>
-
-            <div style="position: absolute; bottom: 40px; left: 60px; right: 60px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                <div style="float: left; font-size: 11px; font-weight: 700; color: #1a3a2e;">Model Marshal Report</div>
-                <div style="float: right; font-size: 11px; color: #666;">Page ${3 + results.length}</div>
-                <div style="clear: both;"></div>
-            </div>
+        <div class='pdf-page' style='background: white; padding: 60px;'>
+            <h2>About Upstate AI</h2>
+            <p>We help businesses in manufacturing, professional services, and logistics build practical AI systems that solve real problems.</p>
+            <p>No hype, just honest assessments and clear implementation plans.</p>
         </div>
     `;
 
-    container.innerHTML = `
-        <style>
-            @page { margin: 0; }
-            * { box-sizing: border-box; }
-            .pdf-page {
-                width: 816px;
-                height: 1056px;
-                page-break-after: always;
-                page-break-inside: avoid;
-                position: relative;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                overflow: hidden;
-            }
-        </style>
-        ${coverHTML}
-        ${methodHTML}
-        ${resultsHTML}
-        ${aboutHTML}
-    `;
-
+    // Assemble the complete HTML content
+    container.innerHTML = coverHTML + inputFormHTML + methodHTML + resultsHTML + qrCodeHTML + aboutHTML;
+    
     document.body.appendChild(container);
     return container;
 }
