@@ -137,64 +137,376 @@ Objectivity: Z/10 - [1-sentence excerpt]`;
         }
     });
 
-    // Function to generate PDF
+    // ============================================================
+    // PDF Generation — Upstate AI report style
+    // Pages: Cover | Model Responses | Synthesis | About Upstate AI
+    // ============================================================
+
+    const COLORS = {
+        forest: [26, 58, 46],     // #1a3a2e
+        forestMid: [45, 87, 69],   // #2d5745
+        orange: [255, 105, 0],     // #ff6900
+        cream: [247, 244, 234],    // #f7f4ea
+        white: [255, 255, 255],
+        darkText: [40, 40, 40],
+        mutedText: [120, 120, 120]
+    };
+
+    function addFooter(doc, pageNum, totalPages) {
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.mutedText);
+        doc.text('Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com', 20, 287);
+        doc.text(`Page ${pageNum} of ${totalPages}`, 185, 287, { align: 'right' });
+    }
+
+    function newPage(doc) {
+        doc.addPage();
+        return 20;
+    }
+
     function generatePDF(results, query, systemPrompt, synthesis) {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        let yPos = 20;
+        const doc = new jsPDF({ unit: 'mm', format: 'letter' });
 
-        // Header
-        doc.setFontSize(16);
-        doc.text(`Model Marshal Report - Query: ${query}`, 20, yPos);
-        yPos += 10;
-        doc.setFontSize(12);
-        doc.text(`Inferred System Prompt: ${systemPrompt}`, 20, yPos);
-        yPos += 20;
+        const W = 216, H = 279; // Letter size
+        let y = 0;
+        let pageCount = 1;
 
-        // Sections for each model
-        doc.setFontSize(12);
-        results.forEach(result => {
+        // ============================================================
+        // PAGE 1: COVER
+        // ============================================================
+        doc.setFillColor(...COLORS.forest);
+        doc.rect(0, 0, W, H, 'F');
+
+        // Logo / Brand wordmark
+        doc.setFontSize(28);
+        doc.setTextColor(...COLORS.white);
+        doc.setFont(undefined, 'bold');
+        doc.text('upstate', W / 2, 50, { align: 'center' });
+
+        // Orange divider line
+        doc.setFillColor(...COLORS.orange);
+        doc.rect(W / 2 - 30, 58, 60, 2, 'F');
+
+        // Title
+        doc.setFontSize(22);
+        doc.setFont(undefined, 'bold');
+        doc.text('AI Readiness Assessment Results', W / 2, 85, { align: 'center' });
+
+        // Horizontal rule
+        doc.setFillColor(...COLORS.orange);
+        doc.rect(W / 2 - 50, 92, 100, 1, 'F');
+
+        // Subtitle / query
+        doc.setFontSize(13);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(220, 220, 220);
+        const queryLines = doc.splitTextToSize(`Query: ${query}`, 140);
+        doc.text(queryLines, W / 2, 110, { align: 'center' });
+
+        // Date
+        const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        doc.setFontSize(11);
+        doc.setTextColor(180, 180, 180);
+        doc.text(`Generated ${dateStr}`, W / 2, 130, { align: 'center' });
+
+        // Tagline
+        doc.setFontSize(14);
+        doc.setTextColor(...COLORS.orange);
+        doc.setFont(undefined, 'bold');
+        doc.text('PUT AI TO WORK', W / 2, H - 45, { align: 'center' });
+
+        // Contact
+        doc.setFontSize(10);
+        doc.setTextColor(200, 200, 200);
+        doc.setFont(undefined, 'normal');
+        doc.text('ben@up-state-ai.com  |  (315) 313-5998  |  up-state-ai.com', W / 2, H - 35, { align: 'center' });
+
+        // ============================================================
+        // PAGE 2+: MODEL RESPONSE PAGES
+        // ============================================================
+        results.forEach((result, idx) => {
+            y = newPage(doc);
+            pageCount++;
+
+            // Page header bar
+            doc.setFillColor(...COLORS.forest);
+            doc.rect(0, 0, W, 18, 'F');
+            doc.setFontSize(12);
+            doc.setTextColor(...COLORS.white);
             doc.setFont(undefined, 'bold');
-            doc.text(`${result.model}:`, 20, yPos);
-            yPos += 10;
-            doc.setFont(undefined, 'normal');
-            doc.text(`System Prompt: ${result.systemPrompt}`, 20, yPos);
-            yPos += 10;
-            const responseLines = doc.splitTextToSize(result.response, 170);
-            doc.text(responseLines, 20, yPos);
-            yPos += responseLines.length * 7 + 10;
+            doc.text(`${result.model}  —  AI Model Comparison`, 20, 12);
 
+            // Model name accent
+            doc.setFillColor(...COLORS.orange);
+            doc.rect(0, 18, 5, 50, 'F');
+
+            y = 28;
+
+            // System Prompt box (cream)
+            doc.setFillColor(...COLORS.cream);
+            doc.roundedRect(15, y, W - 30, 22, 3, 3, 'F');
+            doc.setFontSize(8);
+            doc.setTextColor(...COLORS.mutedText);
             doc.setFont(undefined, 'bold');
-            doc.text('Scores:', 20, yPos);
-            yPos += 10;
+            doc.text('SYSTEM PROMPT', 20, y + 6);
             doc.setFont(undefined, 'normal');
-            const scoreLines = doc.splitTextToSize(result.scores, 170);
-            doc.text(scoreLines, 20, yPos);
-            yPos += scoreLines.length * 7 + 20;
+            doc.setTextColor(...COLORS.darkText);
+            doc.setFontSize(9);
+            const spLines = doc.splitTextToSize(result.systemPrompt, W - 40);
+            doc.text(spLines.slice(0, 3), 20, y + 12);
 
-            if (yPos > 270) {
-                doc.addPage();
-                yPos = 20;
+            y += 28;
+
+            // Response section
+            doc.setFontSize(9);
+            doc.setTextColor(...COLORS.forest);
+            doc.setFont(undefined, 'bold');
+            doc.text('RESPONSE', 15, y);
+            y += 5;
+
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(...COLORS.darkText);
+            doc.setFontSize(9);
+            const respLines = doc.splitTextToSize(result.response, W - 30);
+            const respBlock = respLines.slice(0, 28);
+            doc.text(respBlock, 15, y);
+            y += respBlock.length * 4.5 + 5;
+
+            if (respLines.length > 28) {
+                doc.setTextColor(...COLORS.mutedText);
+                doc.setFontSize(8);
+                doc.text(`[+ ${respLines.length - 28} more lines]`, 15, y);
+                y += 6;
             }
+
+            // Scores section (cream box)
+            doc.setFillColor(...COLORS.cream);
+            doc.roundedRect(15, y, W - 30, 35, 3, 3, 'F');
+            y += 6;
+
+            doc.setFontSize(9);
+            doc.setTextColor(...COLORS.forest);
+            doc.setFont(undefined, 'bold');
+            doc.text('EVALUATION SCORES', 20, y);
+            y += 7;
+
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(...COLORS.darkText);
+            doc.setFontSize(8.5);
+            const scoreLines = doc.splitTextToSize(result.scores, W - 40);
+            doc.text(scoreLines.slice(0, 5), 20, y);
+
+            // Footer
+            addFooter(doc, pageCount, results.length + 3);
         });
 
-        // Bottom: Ethical Synthesis
-        if (yPos > 250) {
-            doc.addPage();
-            yPos = 20;
-        }
-        doc.setFont(undefined, 'bold');
-        doc.setFontSize(14);
-        doc.text(`Ben's Ethical Synthesis`, 20, yPos);
-        yPos += 10;
+        // ============================================================
+        // SYNTHESIS PAGE
+        // ============================================================
+        y = newPage(doc);
+        pageCount++;
+
+        // Header bar
+        doc.setFillColor(...COLORS.forest);
+        doc.rect(0, 0, W, 18, 'F');
         doc.setFontSize(12);
+        doc.setTextColor(...COLORS.white);
+        doc.setFont(undefined, 'bold');
+        doc.text('SYNTHESIS  —  Human Analysis', 20, 12);
+
+        y = 28;
+
+        // Query reminder
+        doc.setFillColor(...COLORS.cream);
+        doc.roundedRect(15, y, W - 30, 18, 3, 3, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(...COLORS.mutedText);
+        doc.setFont(undefined, 'bold');
+        doc.text('ORIGINAL QUERY', 20, y + 6);
         doc.setFont(undefined, 'normal');
-        const synthesisLines = doc.splitTextToSize(synthesis, 170);
-        doc.text(synthesisLines, 20, yPos);
+        doc.setTextColor(...COLORS.darkText);
+        doc.setFontSize(9);
+        const qLines = doc.splitTextToSize(query, W - 40);
+        doc.text(qLines.slice(0, 2), 20, y + 12);
+
+        y += 24;
+
+        // Inferred system prompt
+        doc.setFontSize(8);
+        doc.setTextColor(...COLORS.mutedText);
+        doc.setFont(undefined, 'bold');
+        doc.text('INFERRED SYSTEM PROMPT', 15, y);
+        y += 5;
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(...COLORS.darkText);
+        doc.setFontSize(9);
+        const sysLines = doc.splitTextToSize(systemPrompt, W - 30);
+        doc.text(sysLines.slice(0, 3), 15, y);
+        y += sysLines.slice(0, 3).length * 4.5 + 8;
+
+        // Synthesis label
+        doc.setFontSize(10);
+        doc.setTextColor(...COLORS.forest);
+        doc.setFont(undefined, 'bold');
+        doc.text('ANALYST SYNTHESIS', 15, y);
+        y += 7;
+
+        // Orange left border on synthesis
+        doc.setFillColor(...COLORS.orange);
+        doc.rect(15, y - 3, 3, 30, 'F');
+
+        doc.setFillColor(...COLORS.cream);
+        doc.roundedRect(18, y - 3, W - 33, 40, 3, 3, 'F');
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(...COLORS.darkText);
+        doc.setFontSize(10);
+        const synthLines = doc.splitTextToSize(synthesis, W - 45);
+        doc.text(synthLines.slice(0, 8), 23, y + 6);
+
+        y += 48;
+
+        // Model comparison summary table
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.forest);
+        doc.setFont(undefined, 'bold');
+        doc.text('MODEL COMPARISON AT A GLANCE', 15, y);
+        y += 6;
+
+        // Table header
+        doc.setFillColor(...COLORS.forest);
+        doc.rect(15, y, W - 30, 7, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(...COLORS.white);
+        doc.setFont(undefined, 'bold');
+        doc.text('Model', 18, y + 5);
+        doc.text('Tone', 75, y + 5);
+        doc.text('Authority', 115, y + 5);
+        doc.text('Objectivity', 155, y + 5);
+        y += 7;
+
+        results.forEach((r, i) => {
+            const bg = i % 2 === 0 ? COLORS.cream : COLORS.white;
+            doc.setFillColor(...bg);
+            doc.rect(15, y, W - 30, 7, 'F');
+            doc.setFontSize(8);
+            doc.setTextColor(...COLORS.darkText);
+            doc.setFont(undefined, 'normal');
+            doc.text(r.model, 18, y + 5);
+
+            // Parse scores
+            const scoreText = r.scores || '';
+            const toneMatch = scoreText.match(/Tone:\s*(\d+)/);
+            const authMatch = scoreText.match(/Authoritativeness:\s*(\d+)/);
+            const objMatch = scoreText.match(/Objectivity:\s*(\d+)/);
+            const t = toneMatch ? toneMatch[1] : '-';
+            const a = authMatch ? authMatch[1] : '-';
+            const o = objMatch ? objMatch[1] : '-';
+
+            doc.text(`${t}/10`, 78, y + 5);
+            doc.text(`${a}/10`, 118, y + 5);
+            doc.text(`${o}/10`, 160, y + 5);
+            y += 7;
+        });
+
+        addFooter(doc, pageCount, results.length + 3);
+
+        // ============================================================
+        // LAST PAGE: ABOUT UPSTATE AI
+        // ============================================================
+        y = newPage(doc);
+        pageCount++;
+
+        // Header bar
+        doc.setFillColor(...COLORS.forest);
+        doc.rect(0, 0, W, 18, 'F');
+        doc.setFontSize(12);
+        doc.setTextColor(...COLORS.white);
+        doc.setFont(undefined, 'bold');
+        doc.text('ABOUT UPSTATE AI', 20, 12);
+
+        y = 28;
+
+        doc.setFontSize(10);
+        doc.setTextColor(...COLORS.forest);
+        doc.setFont(undefined, 'bold');
+        doc.text('Upstate AI helps businesses in manufacturing, professional services, and logistics cut through the noise and put AI to work.', 15, y);
+        y += 8;
+
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(...COLORS.darkText);
+        doc.setFontSize(9);
+        doc.text('We deliver practical AI implementations that create real operational value — not pilot projects that die in a slide deck.', 15, y, { maxWidth: W - 30 });
+
+        y += 14;
+
+        // Founder bio
+        doc.setFillColor(...COLORS.cream);
+        doc.roundedRect(15, y, W - 30, 22, 3, 3, 'F');
+        doc.setFillColor(...COLORS.orange);
+        doc.rect(15, y, 4, 22, 'F');
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.forest);
+        doc.setFont(undefined, 'bold');
+        doc.text('Ben Nichols, Founder', 23, y + 7);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(...COLORS.darkText);
+        doc.setFontSize(8.5);
+        doc.text('AI professor at Syracuse University. 15 years in analytics, product, and tech.', 23, y + 13);
+        doc.text('Builds AI systems that actually run in production.', 23, y + 19);
+
+        y += 28;
+
+        // Services grid
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.forest);
+        doc.setFont(undefined, 'bold');
+        doc.text('OUR SERVICES', 15, y);
+        y += 7;
+
+        const services = [
+            ['AI Workshop', 'Half-day interactive session'],
+            ['AI Audit', 'Full operational analysis'],
+            ['AI Execution', 'End-to-end project management'],
+            ['AI Advisory', 'Monthly strategic check-ins']
+        ];
+
+        services.forEach((svc, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const sx = 15 + col * 95;
+            const sy = y + row * 22;
+
+            doc.setFillColor(...COLORS.cream);
+            doc.roundedRect(sx, sy, 88, 18, 3, 3, 'F');
+            doc.setFontSize(9);
+            doc.setTextColor(...COLORS.forest);
+            doc.setFont(undefined, 'bold');
+            doc.text(svc[0], sx + 5, sy + 7);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(...COLORS.mutedText);
+            doc.setFontSize(8);
+            doc.text(svc[1], sx + 5, sy + 13);
+        });
+
+        y += 50;
+
+        // Contact box
+        doc.setFillColor(...COLORS.forest);
+        doc.roundedRect(15, y, W - 30, 30, 3, 3, 'F');
+        doc.setFontSize(10);
+        doc.setTextColor(...COLORS.white);
+        doc.setFont(undefined, 'bold');
+        doc.text("Let's talk about your AI strategy.", W / 2, y + 10, { align: 'center' });
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(9);
+        doc.text('ben@up-state-ai.com  |  (315) 313-5998  |  up-state-ai.com', W / 2, y + 20, { align: 'center' });
+
+        addFooter(doc, pageCount, pageCount);
 
         // Auto-download
-        doc.save('model-marshal-report.pdf');
-
-        status.innerHTML = 'PDF generated and downloaded successfully!';
+        const timestamp = new Date().toISOString().slice(0, 10);
+        doc.save(`model-marshal-report-${timestamp}.pdf`);
+        status.innerHTML = `PDF generated and downloaded as model-marshal-report-${timestamp}.pdf`;
     }
 });
