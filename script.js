@@ -69,31 +69,44 @@ document.addEventListener('DOMContentLoaded', function() {
             return data.choices[0].message.content.trim();
         }
 
+        // Model-specific prompt templates tailored to each model's strengths
+        function getModelPrompt(modelName, domain) {
+            var prompts = {
+                'Claude Sonnet': 'You are an expert consultant with deep experience in ' + domain + '. Provide nuanced, well-reasoned analysis that considers multiple perspectives, ethical implications, and practical constraints. Emphasize actionable recommendations grounded in real-world implementation challenges.',
+                'ChatGPT': 'You are a strategic consultant specializing in ' + domain + '. Structure your response using established frameworks and methodologies. Provide comprehensive analysis that covers key dimensions systematically. Include specific examples and quantifiable metrics where possible.',
+                'Grok': 'You are a no-nonsense operator in ' + domain + '. Cut through marketing hype and provide direct, practical advice. Focus on what actually works based on field experience. Be skeptical of unproven approaches and emphasize measurable results.',
+                'Gemini': 'You are a technical expert in ' + domain + ' with deep knowledge of implementation details and emerging capabilities. Provide specific technical guidance including timelines, budget considerations, and integration requirements. Cite relevant capabilities and tools.',
+                'Llama': 'You are an expert in ' + domain + ' with focus on open-source solutions and data sovereignty. Emphasize approaches that maintain data privacy and technical control. Consider on-premise deployment options and vendor independence.'
+            };
+            return prompts[modelName] || 'You are an expert consultant specializing in ' + domain + '.';
+        }
+
         async function generateSystemPrompt(q) {
-            var inferencePrompt = 'Analyze this user query: "' + q + '"\nInfer the main domain or topic (e.g., manufacturing, finance, healthcare).\nSuggest a concise system prompt starting with "You are an expert in [domain]" or if general, "You are an AI assistant specialized in business operations".\nOutput only the system prompt, nothing else.';
+            var inferencePrompt = 'Analyze this user query: "' + q + '"\nInfer the main domain or topic (e.g., manufacturing operations, business strategy, technology implementation, etc.).\nOutput only the domain/topic in 2-4 words, nothing else.';
             return await callModel('anthropic/claude-sonnet-4.6', [{ role: 'user', content: inferencePrompt }]);
         }
 
         async function scoreResponse(responseText, modelName) {
-            var scoringPrompt = 'Score the following AI response on a scale of 1-10 for:\n1. Tone: neutral/professional (1=emotional/biased, 10=neutral/professional)\n2. Authoritativeness: expert/fact-based (1=speculative/general, 10=expert/fact-based)\n3. Objectivity: unbiased (1=opinionated, 10=unbiased)\nProvide scores and a 1-sentence justification excerpt.\nResponse to score: "' + responseText.replace(/"/g, '\\"') + '" from ' + modelName + '\nFormat as:\nTone: X/10 - [1-sentence excerpt]\nAuthoritativeness: Y/10 - [1-sentence excerpt]\nObjectivity: Z/10 - [1-sentence excerpt]';
+            var scoringPrompt = 'Score the following AI response on a scale of 1-10 for:\n1. Specificity: concrete vs. generic (1=vague platitudes, 10=specific actionable details)\n2. Actionability: clear next steps (1=abstract discussion, 10=clear executable steps)\n3. Domain Depth: expert-level insights (1=surface-level, 10=deep domain expertise)\nProvide scores and a brief justification.\nResponse to score: "' + responseText.replace(/"/g, '\\"') + '" from ' + modelName + '\nFormat as:\nSpecificity: X/10 - [justification]\nActionability: Y/10 - [justification]\nDomain Depth: Z/10 - [justification]';
             return await callModel('anthropic/claude-sonnet-4.6', [{ role: 'user', content: scoringPrompt }]);
         }
 
         try {
-            systemPrompt = await generateSystemPrompt(query);
+            var domain = await generateSystemPrompt(query);
             status.innerHTML = 'Dispatching to models...';
 
             for (var i = 0; i < models.length; i++) {
                 var model = models[i];
+                var modelPrompt = getModelPrompt(model.name, domain);
                 status.innerHTML = 'Querying ' + model.name + '...';
                 var messages = [
-                    { role: 'system', content: systemPrompt },
+                    { role: 'system', content: modelPrompt },
                     { role: 'user', content: query }
                 ];
                 var response = await callModel(model.id, messages);
                 status.innerHTML = 'Scoring ' + model.name + ' response...';
                 var scores = await scoreResponse(response, model.name);
-                results.push({ model: model.name, response: response, scores: scores, systemPrompt: systemPrompt });
+                results.push({ model: model.name, response: response, scores: scores, systemPrompt: modelPrompt });
             }
 
             buildPreview(results, query, systemPrompt);
@@ -123,35 +136,35 @@ function populateTestData() {
             model: 'Claude Sonnet 4.6',
             shortId: 'Sonnet 4.6',
             response: 'AI adoption in manufacturing requires a phased approach that balances operational disruption with measurable ROI. Start with non-critical workflows to establish baselines before expanding to mission-critical processes. Key focus areas should include predictive maintenance, quality control automation, and supply chain optimization.\n\nA practical first step: identify your highest-frequency, highest-variance process. That is where ML models have the most to learn from and where you will see the fastest returns. Avoid trying to boil the ocean — pick one use case, prove it out, then expand methodically.',
-            scores: 'Tone: 9/10 - Professional and measured tone throughout\nAuthoritativeness: 8/10 - Specific manufacturing context cited\nObjectivity: 8/10 - Balanced perspective without vendor bias',
+            scores: 'Specificity: 9/10 - Concrete process recommendations with clear examples\nActionability: 9/10 - Specific starting point identified (high-frequency, high-variance)\nDomain Depth: 8/10 - Manufacturing-specific terminology and context',
             systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
         },
         {
             model: 'GPT-5.4',
             shortId: 'GPT-5.4',
             response: 'For manufacturing leaders, AI readiness hinges on three pillars: data infrastructure maturity, workforce adaptability, and executive commitment. Companies should assess their current state across these dimensions before selecting specific AI use cases.\n\nPriority should be given to high-frequency, high-variance processes where ML can provide immediate pattern recognition benefits. The assessment framework aligns with McKinsey\'s three-horizon model: automate existing processes first (Horizon 1), then optimize (Horizon 2), then transform (Horizon 3). Budget considerations typically range from $50K for scoped pilots to $500K+ for enterprise-wide deployments.',
-            scores: 'Tone: 8/10 - Clear and structured presentation\nAuthoritativeness: 7/10 - General framework, less specific detail\nObjectivity: 7/10 - Some structural bias toward large-scale programs',
+            scores: 'Specificity: 7/10 - Framework-based but less concrete detail\nActionability: 7/10 - Three-horizon model provided, budget ranges given\nDomain Depth: 7/10 - McKinsey framework cited, solid but less field-specific',
             systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
         },
         {
             model: 'Grok 4.1 Fast',
             shortId: 'Grok 4.1',
             response: 'Straight talk: most manufacturing AI projects fail because companies skip the boring groundwork. Get your data right first. Then pick one pain point with clear ROI. Run it as an experiment, not a program. Scale only what proves itself.\n\nAvoid the consulting pitches until you have your own house in order. The best manufacturers treat this as an engineering problem, not a strategy presentation. Set specific measurable targets, hold people accountable, and do not move to the next phase until the current one has numbers.',
-            scores: 'Tone: 7/10 - Direct but informal\nAuthoritativeness: 8/10 - Practical field experience cited\nObjectivity: 9/10 - No commercial angle detected',
+            scores: 'Specificity: 8/10 - Direct, practical advice with clear priorities\nActionability: 9/10 - Explicit steps: data first, pick one pain point, prove it\nDomain Depth: 8/10 - Field operator perspective, anti-consultant stance',
             systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
         },
         {
             model: 'Gemini 3 Flash',
             shortId: 'Gemini 3',
             response: 'Gemini notes strong alignment between AI capabilities and manufacturing needs in three areas: computer vision for defect detection, time-series forecasting for demand planning, and natural language interfaces for maintenance documentation.\n\nImplementation timelines vary from 6 weeks for packaged solutions to 6 months for custom integrations. Budget ranges from $50K to $500K depending on scope. Key risk factor: data quality — most manufacturers discover their historical data is not ML-ready and needs 3-6 months of cleanup before any model training can begin.',
-            scores: 'Tone: 8/10 - Analytical and structured\nAuthoritativeness: 8/10 - Specific capability details\nObjectivity: 7/10 - Slight Google Cloud ecosystem bias',
+            scores: 'Specificity: 8/10 - Three specific AI areas identified with use cases\nActionability: 7/10 - Timeline and budget ranges provided\nDomain Depth: 8/10 - Technical capability knowledge, data quality insight',
             systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
         },
         {
             model: 'Llama 3.3 70B',
             shortId: 'Llama 3.3',
             response: 'Open-source models like Llama offer a compelling alternative for manufacturers concerned about data privacy. Running LLMs on-premise means sensitive operational data never leaves the facility.\n\nThe trade-off is internal ML expertise required for fine-tuning and deployment. Best suited for companies with strong data science teams already on staff. For organizations without this capability, fine-tuning-as-a-service providers can bridge the gap, though this adds dependency considerations.',
-            scores: 'Tone: 7/10 - Informative but dense\nAuthoritativeness: 7/10 - Good technical depth\nObjectivity: 8/10 - Strong vendor-neutral positioning',
+            scores: 'Specificity: 7/10 - Open-source alternative clearly positioned\nActionability: 6/10 - Trade-offs discussed but fewer concrete steps\nDomain Depth: 7/10 - Privacy and sovereignty focus, technical deployment detail',
             systemPrompt: 'You are an expert in manufacturing operations and industrial AI applications with deep knowledge of Industry 4.0, IoT integration, and production environments.'
         }
     ];
@@ -322,7 +335,7 @@ function generatePDF(results, query, systemPrompt, synthesis) {
 
     var steps = [
         ['1', 'Query Dispatch', 'Your question is sent simultaneously to five AI models via OpenRouter API, each receiving the same inferred system context.'],
-        ['2', 'Response Scoring', 'Each response is independently evaluated by Claude Sonnet on three dimensions: Tone, Authoritativeness, and Objectivity (1-10 scale).'],
+        ['2', 'Response Scoring', 'Each response is independently evaluated by Claude Sonnet on three dimensions: Specificity, Actionability, and Domain Depth (1-10 scale).'],
         ['3', 'Human Synthesis', 'A human analyst reviews all five responses and scores to identify patterns, tensions, and the most actionable insight.'],
         ['4', 'PDF Export', 'This report synthesizes the full process into a branded deliverable suitable for client presentation or internal strategy documentation.']
     ];
@@ -369,7 +382,7 @@ function generatePDF(results, query, systemPrompt, synthesis) {
 
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
-    doc.text('Scoring provider: Anthropic Claude Sonnet 4.6 via OpenRouter', 20, y + 6);
+    doc.text('Scoring provider: Anthropic Claude Sonnet 4.6', 20, y + 6);
 
     addFooter(doc, pageNum, totalPages);
 
@@ -397,14 +410,14 @@ function generatePDF(results, query, systemPrompt, synthesis) {
         y = 26;
 
         // Model metadata + score badges
-        var toneScore = 7, authScore = 7, objScore = 7;
+        var specScore = 7, actScore = 7, depthScore = 7;
         var scoreText = result.scores || '';
-        var tm = scoreText.match(/Tone:\s*(\d+)/);
-        var am = scoreText.match(/Authoritativeness:\s*(\d+)/);
-        var om = scoreText.match(/Objectivity:\s*(\d+)/);
-        if (tm) toneScore = parseInt(tm[1]);
-        if (am) authScore = parseInt(am[1]);
-        if (om) objScore = parseInt(om[1]);
+        var sm = scoreText.match(/Specificity:\s*(\d+)/);
+        var am = scoreText.match(/Actionability:\s*(\d+)/);
+        var dm = scoreText.match(/Domain Depth:\s*(\d+)/);
+        if (sm) specScore = parseInt(sm[1]);
+        if (am) actScore = parseInt(am[1]);
+        if (dm) depthScore = parseInt(dm[1]);
 
         function scoreColor(s) {
             return s >= 8 ? [45, 87, 69] : s >= 6 ? [255, 165, 0] : [180, 50, 50];
@@ -420,9 +433,9 @@ function generatePDF(results, query, systemPrompt, synthesis) {
 
         // Score badges
         var badges = [
-            ['Tone: ' + toneScore + '/10', toneScore],
-            ['Authority: ' + authScore + '/10', authScore],
-            ['Objectivity: ' + objScore + '/10', objScore]
+            ['Specific: ' + specScore + '/10', specScore],
+            ['Actionable: ' + actScore + '/10', actScore],
+            ['Depth: ' + depthScore + '/10', depthScore]
         ];
         for (var bi = 0; bi < badges.length; bi++) {
             var bx = 84 + bi * 44;
@@ -559,9 +572,9 @@ function generatePDF(results, query, systemPrompt, synthesis) {
     doc.setTextColor(255, 255, 255);
     doc.setFont(undefined, 'bold');
     doc.text('Model', 18, y + 5.5);
-    doc.text('Tone', 78, y + 5.5);
-    doc.text('Authority', 118, y + 5.5);
-    doc.text('Objectivity', 158, y + 5.5);
+    doc.text('Specificity', 78, y + 5.5);
+    doc.text('Actionability', 118, y + 5.5);
+    doc.text('Depth', 158, y + 5.5);
     y += 8;
 
     for (var ri = 0; ri < results.length; ri++) {
@@ -574,12 +587,12 @@ function generatePDF(results, query, systemPrompt, synthesis) {
         doc.setFont(undefined, 'normal');
         doc.text(r.model, 18, y + 5.5);
 
-        var st2 = (r.scores || '').match(/Tone:\s*(\d+)/);
-        var sa2 = (r.scores || '').match(/Authoritativeness:\s*(\d+)/);
-        var so2 = (r.scores || '').match(/Objectivity:\s*(\d+)/);
-        doc.text((st2 ? st2[1] : '-') + '/10', 80, y + 5.5);
+        var ss2 = (r.scores || '').match(/Specificity:\s*(\d+)/);
+        var sa2 = (r.scores || '').match(/Actionability:\s*(\d+)/);
+        var sd2 = (r.scores || '').match(/Domain Depth:\s*(\d+)/);
+        doc.text((ss2 ? ss2[1] : '-') + '/10', 80, y + 5.5);
         doc.text((sa2 ? sa2[1] : '-') + '/10', 120, y + 5.5);
-        doc.text((so2 ? so2[1] : '-') + '/10', 162, y + 5.5);
+        doc.text((sd2 ? sd2[1] : '-') + '/10', 162, y + 5.5);
         y += 8;
     }
 

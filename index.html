@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Model Marshal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -58,8 +59,8 @@
     <h1>Model Marshal Local Web App</h1>
     <p>This is a standalone app to query multiple AI models with inferred system prompts, preview responses and scores side-by-side, add a synthesis summary, and generate a PDF report.</p>
     <form id="queryForm">
-        <label for="apiKey">OpenRouter API Key:</label>
-        <input type="password" id="apiKey" placeholder="Enter your OpenRouter API key" required>
+        <label for="apiKey">API Key:</label>
+        <input type="password" id="apiKey" placeholder="Enter your API key" required>
         <br><br>
         <label for="query">Query:</label>
         <textarea id="query" rows="4" cols="50" placeholder="Enter your query here..." required></textarea>
