@@ -3,22 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="styles.css"> <!-- Assuming we have a stylesheet for styles -->
-    <title>Model Marshal v1.0.0</title>
+    <title>Model Marshal — AI Response Evaluator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0e14;
+            color: #e8e6e3;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 2rem; }
+        h1 { font-size: 1.8rem; color: #3ecf8e; margin-bottom: 0.25rem; }
+        .subtitle { color: #888; font-size: 0.9rem; }
+        .test-mode-banner {
+            background: #1a3a2a;
+            border: 1px solid #3ecf8e;
+            color: #3ecf8e;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .card {
+            background: #161b22;
+            border: 1px solid #2d333b;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1rem; color: #58a6ff; margin-bottom: 1rem; }
+        label { display: block; font-size: 0.8rem; color: #8b949e; margin-bottom: 0.3rem; }
+        input, textarea, select {
+            width: 100%;
+            background: #0d1117;
+            border: 1px solid #2d333b;
+            border-radius: 6px;
+            color: #e8e6e3;
+            padding: 0.6rem;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        textarea { min-height: 80px; resize: vertical; }
+        .btn {
+            background: #238636;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.7rem 1.5rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
+        .btn:hover { background: #2ea043; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background: #1f6feb; }
+        .btn-secondary:hover { background: #388bfd; }
+        #status { padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; color: #8b949e; min-height: 2.5rem; }
+        .status-info { background: #0d1117; }
+        .status-success { background: #0d2117; color: #3ecf8e; }
+        .status-error { background: #2d1117; color: #f85149; }
+        #modelsContainer { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
+        .model-card {
+            background: #0d1117;
+            border: 1px solid #2d333b;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .model-card h3 { font-size: 0.95rem; color: #3ecf8e; margin-bottom: 0.5rem; }
+        .model-card .scores { color: #ffd700; font-size: 0.8rem; margin: 0.5rem 0; }
+        .model-card .response { color: #c9d1d9; font-size: 0.85rem; line-height: 1.5; }
+        .model-card .system-prompt { color: #8b949e; font-size: 0.75rem; margin-top: 0.5rem; }
+        .section-label { font-size: 0.75rem; color: #58a6ff; text-transform: uppercase; letter-spacing: 0.05em; margin: 1rem 0 0.5rem; }
+        #pdfPreview { background: #161b22; border: 1px solid #2d333b; border-radius: 8px; padding: 1rem; margin-top: 1rem; display: none; }
+        #pdfPreview h2 { font-size: 1rem; color: #3ecf8e; margin-bottom: 1rem; }
+        .qr-row { display: flex; gap: 2rem; margin-top: 1rem; }
+        .qr-row .info { flex: 1; }
+        .qr-row img { height: 120px; }
+        .footer { text-align: center; color: #484f58; font-size: 0.75rem; margin-top: 2rem; }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Model Marshal v1.0.0</h1>
-        <form id="queryForm">
-            <label for="apiKey">API Key:</label>
-            <input type="text" id="apiKey" required>
-            <label for="query">Query:</label>
-            <textarea id="query" required></textarea>
-            <button type="submit">Dispatch to Models</button>
-        </form>
-        <div id="status"></div>
-    </header>
-    <div id="output"></div>
+    <div class="container">
+        <header>
+            <h1>Model Marshal</h1>
+            <p class="subtitle">Query multiple AI models, compare responses, export to PDF</p>
+        </header>
+
+        <div id="testModeBanner" class="test-mode-banner">
+            TEST MODE — Using sample data. Responses are pre-populated.
+        </div>
+
+        <div class="card">
+            <h2>1. Configure</h2>
+            <label for="apiKey">OpenRouter API Key</label>
+            <input type="password" id="apiKey" placeholder="sk-or-v1-..." value="">
+
+            <label for="query">Your Question</label>
+            <textarea id="query" placeholder="e.g., How should a mid-size manufacturer approach AI adoption?">How should a mid-size manufacturer approach AI adoption?</textarea>
+        </div>
+
+        <div class="card">
+            <h2>2. Query Models</h2>
+            <button id="dispatchBtn" class="btn">Dispatch to Models</button>
+            <div id="status" class="status-info">Ready. Enter your question and click Dispatch.</div>
+        </div>
+
+        <div id="modelsContainer"></div>
+
+        <div class="card" id="synthesisCard" style="display:none;">
+            <h2>3. Synthesize</h2>
+            <label for="synthesis">Your Synthesis / Recommendation</label>
+            <textarea id="synthesis" placeholder="Write your synthesis here after reviewing the model responses..."></textarea>
+            <button id="generatePdfBtn" class="btn btn-secondary">Generate PDF Report</button>
+        </div>
+
+        <div id="pdfPreview"></div>
+
+        <p class="footer">Model Marshal — by Upstate AI</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
