@@ -357,24 +357,49 @@ pagesHTML += `
             <div style="clear: both;"></div>
         </div>
     </div>`;
+    
+    // PAGE 2: ANALYSIS SUMMARY (White background, clean layout)
     pagesHTML += `
-    <div class="pdf-page" style="width: 816px; height: 1056px; background: #1a3a2e; color: white; text-align: center; position: relative; font-family: -apple-system, sans-serif;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 80px 40px 60px 40px;">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAACWCAYAAADwkd5lAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABx0RVh0U29mdHdhcmUAQWRvYmUgRmlyZXdvcmtzIENTNui8sowAAAAWdEVYdENyZWF0aW9uIFRpbWUAMDMvMTQvMTkVqX2nAAACE0lEQVR4nO3TQQ0AIAwEsYv+OycdXBBIIOvnQABgZu5dAADwjIEAgBgIAIiBxUAmV9Zv0/z0AAAAASUVORK5CYII=" alt="Upstate AI" style="width: 300px; margin-bottom: 40px;">
-            <div style="width: 80px; height: 4px; background: #ff6900; margin: 30px auto;"></div>
-            <h1 style="font-size: 38px; font-weight: 700; margin: 30px 0; color: #f7f4ea; letter-spacing: -0.02em;">Model Marshal<br>Report</h1>
-                <p style="margin: 8px 0;"><strong>Claude Sonnet 4.6:</strong> Anthropic's latest model, excelling at nuanced analysis, following complex instructions, and producing well-structured outputs with strong reasoning capabilities.</p>
-                <p style="margin: 8px 0;"><strong>GPT-5.4:</strong> OpenAI's flagship model with exceptional performance across diverse tasks, structured problem-solving, and comprehensive knowledge synthesis.</p>
-                <p style="margin: 8px 0;"><strong>Grok-4-Fast:</strong> X.AI's model optimized for speed and directness, providing practical insights with minimal latency and straightforward communication style.</p>
-                <p style="margin: 8px 0;"><strong>Gemini 3 Flash:</strong> Google's fast, efficient model balancing speed with quality, strong at technical analysis and detailed explanations.</p>
-                <p style="margin: 8px 0;"><strong>Llama 3.3 70B:</strong> Meta's open-source model offering strong performance with transparency, privacy, and cost-effectiveness for on-premise deployments.</p>
+    <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
+        <div style="padding: 50px 40px;">
+            <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
+                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">Analysis Summary</h2>
             </div>
             
-            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 25px 0 10px 0;">Evaluation Methodology</h3>
-            <div style="font-size: 12px; line-height: 1.7; color: #2a2a2a;">
-                <p style="margin: 8px 0;"><strong>Specificity:</strong> Measures concrete details vs. generic statements. Higher scores indicate precise, measurable recommendations.</p>
-                <p style="margin: 8px 0;"><strong>Actionability:</strong> Evaluates clarity of next steps and implementation guidance. Higher scores mean ready-to-execute advice.</p>
-                <p style="margin: 8px 0;"><strong>Domain Depth:</strong> Assesses expert-level insights and industry knowledge. Higher scores reflect specialized expertise.</p>
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 0 0 10px 0;">Query</h3>
+            <div style="background: #f7f4ea; padding: 15px; border-left: 4px solid #ff6900; border-radius: 4px; margin-bottom: 30px;">
+                <p style="margin: 0; color: #2a2a2a; font-size: 13px; line-height: 1.6;">${escapeHtml(query)}</p>
+            </div>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 0 0 15px 0;">Models Evaluated</h3>
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 6px; margin-bottom: 25px;">
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0e0e0;">
+                    <div style="color: #ff6900; font-weight: 700; font-size: 13px; margin-bottom: 4px;">Claude Sonnet 4.6</div>
+                    <p style="margin: 0; color: #555; font-size: 12px; line-height: 1.6;">Anthropic's latest model, excelling at nuanced analysis, following complex instructions, and producing well-structured outputs with strong reasoning capabilities.</p>
+                </div>
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0e0e0;">
+                    <div style="color: #ff6900; font-weight: 700; font-size: 13px; margin-bottom: 4px;">GPT-5.4</div>
+                    <p style="margin: 0; color: #555; font-size: 12px; line-height: 1.6;">OpenAI's flagship model with exceptional performance across diverse tasks, structured problem-solving, and comprehensive knowledge synthesis.</p>
+                </div>
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0e0e0;">
+                    <div style="color: #ff6900; font-weight: 700; font-size: 13px; margin-bottom: 4px;">Grok-4-Fast</div>
+                    <p style="margin: 0; color: #555; font-size: 12px; line-height: 1.6;">X.AI's model optimized for speed and directness, providing practical insights with minimal latency and straightforward communication style.</p>
+                </div>
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e0e0e0;">
+                    <div style="color: #ff6900; font-weight: 700; font-size: 13px; margin-bottom: 4px;">Gemini 3 Flash</div>
+                    <p style="margin: 0; color: #555; font-size: 12px; line-height: 1.6;">Google's fast, efficient model balancing speed with quality, strong at technical analysis and detailed explanations.</p>
+                </div>
+                <div>
+                    <div style="color: #ff6900; font-weight: 700; font-size: 13px; margin-bottom: 4px;">Llama 3.3 70B</div>
+                    <p style="margin: 0; color: #555; font-size: 12px; line-height: 1.6;">Meta's open-source model offering strong performance with transparency, privacy, and cost-effectiveness for on-premise deployments.</p>
+                </div>
+            </div>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 0 0 10px 0;">Evaluation Methodology</h3>
+            <div style="color: #555; font-size: 12px; line-height: 1.8;">
+                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Specificity:</strong> Measures concrete details vs. generic statements. Higher scores indicate precise, measurable recommendations.</p>
+                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Actionability:</strong> Evaluates clarity of next steps and implementation guidance. Higher scores mean ready-to-execute advice.</p>
+                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Domain Depth:</strong> Assesses expert-level insights and industry knowledge. Higher scores reflect specialized expertise.</p>
             </div>
         </div>
         <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #e0e0e0; padding-top: 10px;">
@@ -543,7 +568,7 @@ pagesHTML += `
                 </div>
                 <div style="float: right; width: 160px; text-align: center;">
                     <div style="background: white; padding: 10px; border-radius: 6px; display: inline-block;">
-                        <img crossOrigin="anonymous" id="qr-code-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
+                        <img id="qr-code-img" src="qr-code-upstate-ai.png" alt="QR Code" style="display: block; width: 140px; height: 140px;">
                     </div>
                 </div>
                 <div style="clear: both;"></div>
