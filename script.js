@@ -4,6 +4,7 @@
 const TEST_MODE = true; // Set false to query real models via OpenRouter
 
 var globalResults = [];
+var cachedQrDataUrl = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     var dispatchBtn = document.getElementById('dispatchBtn');
@@ -236,59 +237,88 @@ function newPage(doc) { doc.addPage(); return 20; }
 
 
 function generatePDF(results, query, systemPrompt, synthesis, userInfo) {
-    // Build HTML template
-    var pdfContainer = buildPDFHTML(results, query, synthesis, userInfo || {});
     var timestamp = new Date().toISOString().slice(0, 10);
 
-    // Create processing overlay
-    var overlay = document.createElement('div');
-    overlay.id = 'pdf-overlay';
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1a3a2e; z-index: 10000;';
-    overlay.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: -apple-system, sans-serif;">' +
-        '<div style="width: 56px; height: 56px; border: 4px solid rgba(255,105,0,0.25); border-top-color: #ff6900; border-radius: 50%; animation: pdfspin 0.8s linear infinite; margin: 0 auto 28px;"></div>' +
-        '<div style="font-size: 22px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.02em;">Generating Your Report</div>' +
-        '<div style="font-size: 14px; color: rgba(247,244,234,0.6);">Preparing your Model Marshal report...</div>' +
-        '</div>' +
-        '<style>@keyframes pdfspin { to { transform: rotate(360deg); } }</style>';
-    document.body.appendChild(overlay);
+    // Pre-fetch QR code as base64 so html2canvas can capture it
+    if (!cachedQrDataUrl) {
+        cachedQrDataUrl = new Promise(function(resolve) {
+            var img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                try {
+                    var canvas = document.createElement('canvas');
+                    canvas.width = img.width || 150;
+                    canvas.height = img.height || 150;
+                    var ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                } catch (e) { resolve(null); }
+            };
+            img.onerror = function() { resolve(null); };
+            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://up-state-ai.com';
+        });
+    }
 
-    // Give browser time to render
-    setTimeout(function() {
-        html2canvas(pdfContainer, { scale: 2, useCORS: true, allowTaint: true }).then(function(canvas) {
-            var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-            if (jsPDFLib) {
-                var pdf = new jsPDFLib({ unit: 'px', format: [816, 1056], orientation: 'portrait' });
-                var pageHeight = 1056;
-                var imgData = canvas.toDataURL('image/jpeg', 0.98);
-                var imgHeight = (canvas.height * 816) / canvas.width;
-                var heightLeft = imgHeight;
-                var position = 0;
+    cachedQrDataUrl.then(function(qrDataUrl) {
+        // Build HTML template
+        var pdfContainer = buildPDFHTML(results, query, synthesis, userInfo || {}, qrDataUrl);
 
-                pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
-                heightLeft -= pageHeight;
+        // Replace QR code img src with base64 data URL if available
+        if (qrDataUrl) {
+            var qrImg = pdfContainer.querySelector('#qr-code-img');
+            if (qrImg) qrImg.src = qrDataUrl;
+        }
 
-                while (heightLeft > 0) {
-                    position -= pageHeight;
-                    pdf.addPage([816, 1056]);
+        // Create processing overlay
+        var overlay = document.createElement('div');
+        overlay.id = 'pdf-overlay';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1a3a2e; z-index: 10000;';
+        overlay.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: -apple-system, sans-serif;">' +
+            '<div style="width: 56px; height: 56px; border: 4px solid rgba(255,105,0,0.25); border-top-color: #ff6900; border-radius: 50%; animation: pdfspin 0.8s linear infinite; margin: 0 auto 28px;"></div>' +
+            '<div style="font-size: 22px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.02em;">Generating Your Report</div>' +
+            '<div style="font-size: 14px; color: rgba(247,244,234,0.6);">Preparing your Model Marshal report...</div>' +
+            '</div>' +
+            '<style>@keyframes pdfspin { to { transform: rotate(360deg); } }</style>';
+        document.body.appendChild(overlay);
+
+        // Give browser time to render
+        setTimeout(function() {
+            html2canvas(pdfContainer, { scale: 2, useCORS: true, allowTaint: true }).then(function(canvas) {
+                var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+                if (jsPDFLib) {
+                    var pdf = new jsPDFLib({ unit: 'px', format: [816, 1056], orientation: 'portrait' });
+                    var pageHeight = 1056;
+                    var imgData = canvas.toDataURL('image/jpeg', 0.98);
+                    var imgHeight = (canvas.height * 816) / canvas.width;
+                    var heightLeft = imgHeight;
+                    var position = 0;
+
                     pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
                     heightLeft -= pageHeight;
-                }
 
-                pdf.save('model-marshal-report-' + timestamp + '.pdf');
-            }
-            // Clean up
-            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        }).catch(function(err) {
-            console.error('PDF generation error:', err);
-            alert('PDF generation failed: ' + err.message);
-            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        });
-    }, 3500);
+                    while (heightLeft > 0) {
+                        position -= pageHeight;
+                        pdf.addPage([816, 1056]);
+                        pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+
+                    pdf.save('model-marshal-report-' + timestamp + '.pdf');
+                }
+                // Clean up
+                if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            }).catch(function(err) {
+                console.error('PDF generation error:', err);
+                alert('PDF generation failed: ' + err.message);
+                if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            });
+        }, 3500);
+    });
 }
 
-function buildPDFHTML(results, query, synthesis, userInfo) {
+function buildPDFHTML(results, query, synthesis, userInfo, qrDataUrl) {
     var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     var totalPages = results.length + 3;
 
@@ -347,11 +377,47 @@ pagesHTML += `
             <div style="clear: both;"></div>
         </div>
     </div>`;
+    
+    // PAGE 2: ANALYSIS SUMMARY
+    pagesHTML += `
+    <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
+        <div style="padding: 50px 40px;">
+            <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
+                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">Analysis Summary</h2>
+            </div>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 0 0 10px 0;">Query</h3>
+            <div style="background: #f7f4ea; padding: 15px; border-left: 4px solid #ff6900; border-radius: 4px; margin-bottom: 25px;">
+                <p style="margin: 0; color: #2a2a2a; font-size: 13px; line-height: 1.6;">${escapeHtml(query)}</p>
+            </div>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 25px 0 10px 0;">Models Evaluated</h3>
+            <div style="font-size: 12px; line-height: 1.7; color: #2a2a2a; margin-bottom: 20px;">
+                <p style="margin: 8px 0;"><strong>Claude Sonnet 4.6:</strong> Anthropic's latest model, excelling at nuanced analysis, following complex instructions, and producing well-structured outputs with strong reasoning capabilities.</p>
+                <p style="margin: 8px 0;"><strong>GPT-5.4:</strong> OpenAI's flagship model with exceptional performance across diverse tasks, structured problem-solving, and comprehensive knowledge synthesis.</p>
+                <p style="margin: 8px 0;"><strong>Grok-4-Fast:</strong> X.AI's model optimized for speed and directness, providing practical insights with minimal latency and straightforward communication style.</p>
+                <p style="margin: 8px 0;"><strong>Gemini 3 Flash:</strong> Google's fast, efficient model balancing speed with quality, strong at technical analysis and detailed explanations.</p>
+                <p style="margin: 8px 0;"><strong>Llama 3.3 70B:</strong> Meta's open-source model offering strong performance with transparency, privacy, and cost-effectiveness for on-premise deployments.</p>
+            </div>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 25px 0 10px 0;">Evaluation Methodology</h3>
+            <div style="font-size: 12px; line-height: 1.7; color: #2a2a2a;">
+                <p style="margin: 8px 0;"><strong>Specificity:</strong> Measures concrete details vs. generic statements. Higher scores indicate precise, measurable recommendations.</p>
+                <p style="margin: 8px 0;"><strong>Actionability:</strong> Evaluates clarity of next steps and implementation guidance. Higher scores mean ready-to-execute advice.</p>
+                <p style="margin: 8px 0;"><strong>Domain Depth:</strong> Assesses expert-level insights and industry knowledge. Higher scores reflect specialized expertise.</p>
+            </div>
+        </div>
+        <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #e0e0e0; padding-top: 10px;">
+            <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
+            <div style="float: right;">Page 2 of ${totalPages}</div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>`;
 
-    // PAGES 2+: MODEL RESPONSES WITH BAR GRAPHS
+    // PAGES 3-7: MODEL RESPONSES WITH BAR GRAPHS
     for (var i = 0; i < results.length; i++) {
         var result = results[i];
-        var pageNum = i + 2;
+        var pageNum = i + 3;
         
         // Extract scores from text
         var scores = result.scores || '';
@@ -507,7 +573,7 @@ pagesHTML += `
                 </div>
                 <div style="float: right; width: 160px; text-align: center;">
                     <div style="background: white; padding: 10px; border-radius: 6px; display: inline-block;">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
+                        <img id="qr-code-img" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
                     </div>
                 </div>
                 <div style="clear: both;"></div>
