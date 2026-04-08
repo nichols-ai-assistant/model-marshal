@@ -474,11 +474,34 @@ function generatePDF(results, query, systemPrompt, synthesis) {
         var act = sa2 ? parseInt(sa2[1]) : 0;
         var depth = sd2 ? parseInt(sd2[1]) : 0;
         
-        doc.setTextColor(spec >= 8 ? [34, 139, 34] : spec >= 6 ? [255, 140, 0] : [200, 0, 0]);
+        // Specificity score with color coding
+        if (spec >= 8) {
+            doc.setTextColor(34, 139, 34); // Green
+        } else if (spec >= 6) {
+            doc.setTextColor(255, 140, 0); // Orange
+        } else {
+            doc.setTextColor(200, 0, 0); // Red
+        }
         doc.text((ss2 ? ss2[1] : '-') + '/10', 85, y + 5.5);
-        doc.setTextColor(act >= 8 ? [34, 139, 34] : act >= 6 ? [255, 140, 0] : [200, 0, 0]);
+        
+        // Actionability score with color coding
+        if (act >= 8) {
+            doc.setTextColor(34, 139, 34);
+        } else if (act >= 6) {
+            doc.setTextColor(255, 140, 0);
+        } else {
+            doc.setTextColor(200, 0, 0);
+        }
         doc.text((sa2 ? sa2[1] : '-') + '/10', 130, y + 5.5);
-        doc.setTextColor(depth >= 8 ? [34, 139, 34] : depth >= 6 ? [255, 140, 0] : [200, 0, 0]);
+        
+        // Depth score with color coding
+        if (depth >= 8) {
+            doc.setTextColor(34, 139, 34);
+        } else if (depth >= 6) {
+            doc.setTextColor(255, 140, 0);
+        } else {
+            doc.setTextColor(200, 0, 0);
+        }
         doc.text((sd2 ? sd2[1] : '-') + '/10', 170, y + 5.5);
         y += 8;
     }
