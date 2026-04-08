@@ -239,24 +239,17 @@ function newPage(doc) { doc.addPage(); return 20; }
 function generatePDF(results, query, systemPrompt, synthesis, userInfo) {
     var timestamp = new Date().toISOString().slice(0, 10);
 
-    // Pre-fetch QR code as base64 so html2canvas can capture it
+    // Pre-fetch local QR code as base64 (same-origin, no CORS issues)
     if (!cachedQrDataUrl) {
-        cachedQrDataUrl = new Promise(function(resolve) {
-            var img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = function() {
-                try {
-                    var canvas = document.createElement('canvas');
-                    canvas.width = img.width || 150;
-                    canvas.height = img.height || 150;
-                    var ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/png'));
-                } catch (e) { resolve(null); }
-            };
-            img.onerror = function() { resolve(null); };
-            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://up-state-ai.com';
-        });
+        cachedQrDataUrl = fetch('qr-code.png')
+            .then(function(response) { return response.arrayBuffer(); })
+            .then(function(buffer) {
+                var bytes = new Uint8Array(buffer);
+                var binary = '';
+                for (var i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+                return 'data:image/png;base64,' + btoa(binary);
+            })
+            .catch(function() { return null; });
     }
 
     cachedQrDataUrl.then(function(qrDataUrl) {
@@ -568,7 +561,7 @@ pagesHTML += `
                 </div>
                 <div style="float: right; width: 160px; text-align: center;">
                     <div style="background: white; padding: 10px; border-radius: 6px; display: inline-block;">
-                        <img id="qr-code-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGMAAABjAQMAAAC19SzWAAAABlBMVEUAAAD///+l2Z/dAAAAAnRSTlP//8i138cAAAAJcEhZcwAACxIAAAsSAdLdfvwAAADtSURBVDiNzdSxrcMgEAbgsyhSsgASa9B5JVggFgs8r0THGpa8AHQUyH/OylP8Gr9zkUi5iq8A/QcnCH+LvliF6D4anWiQVNFDs3PmhaRkPJkpU7igO/WLCuj6itC9W4Yj2am4v5BNOLo9FVfhmzhu8FTFcZCVE2lJ22hrQv3N8p9q6nQDso2SNmeBZYCFpDL2AQppjZKQVEx2oyVIqlhCVmhGFPc3Z9Kws6RCXaf9NSZJXPy8HLxK4h1+XGNWURJv4hkMeE3WufZpJU+qXpB3dm7P1IKmpn6cCaJ4rvfjV0ja57oZcoiSPv/3vEMPrTO48Li5pwoAAAAASUVORK5CYII=" alt="QR Code" style="display: block; width: 140px; height: 140px;">
+                        <img id="qr-code-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsAQAAAABRBrPYAAACA0lEQVR4nO1aUY6CQAztExP9G2+AyR6EvRl4Mz3IJnoD5k8ToZtOgcUxbPwxM4l9HwK2JtjS9rUFTC/Ar17RIjK1txqE+Dyd1i34uGFunwXmhQipDFJwwJ3I9UQ3yNfVleYCC5kY6Z7eA4C9XlfMKHs6OX4QWGRFSG8QD4FUqMojs3tbhqn9axCE0sZTAC6oLcLU3s1DirGC1S2YpaaF0vYgMC9ESGWQLuRIrMO1hJTQEcFMYM6KkMQgxDO04CMpd5RsOBOYs/Jw1jlkOyqFyCtcL9xxuLA0mFlkNY7VZ714SQ6CkrkZnGmRFSNhqvHAvkPjC0mDwPDbDtwSKuudsyIYjcYRyg7fGmvHjaZBx3QxgpFVzWr0tB6ou2M5aP4bBEYwIuRsEArTX+mUiz+K+FTzzKcZ8RCaUA1Ef8PjDL80hp9dO3aWAEIg+9o761RfQ84iK6M0SKTtGIQ0Bt/pcCoILLLyHHRQaJqld75ONcsGHRnxkIsOCgE0BD7owkUQqH3ae3sJqw/dO3eoJaSGQcd9aqpz/wsforoWj0NDVP4Q+Z0MeuFaphuNu0zrnfP0qVMa2DK+ddBRj2Pf9Pe2DFOLMCtfgTSetkoXb1u+fN3J7/Rgdstp4cKyXuawFhsXLuMKxtqxLPfOXl/P8Ss6bcf333RsbJEVIYlBYK8BPyLnx/IXrzl4LfiEH5sAAAAASUVORK5CYII=" alt="QR Code" crossorigin="anonymous" style="display: block; width: 140px; height: 140px;">
                     </div>
                 </div>
                 <div style="clear: both;"></div>
