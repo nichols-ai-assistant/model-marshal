@@ -4,7 +4,6 @@
 const TEST_MODE = true; // Set false to query real models via OpenRouter
 
 var globalResults = [];
-var cachedQrDataUrl = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     var dispatchBtn = document.getElementById('dispatchBtn');
@@ -239,28 +238,8 @@ function newPage(doc) { doc.addPage(); return 20; }
 function generatePDF(results, query, systemPrompt, synthesis, userInfo) {
     var timestamp = new Date().toISOString().slice(0, 10);
 
-    // Pre-fetch local QR code as base64 (same-origin, no CORS issues)
-    if (!cachedQrDataUrl) {
-        cachedQrDataUrl = fetch('qr-code.png')
-            .then(function(response) { return response.arrayBuffer(); })
-            .then(function(buffer) {
-                var bytes = new Uint8Array(buffer);
-                var binary = '';
-                for (var i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-                return 'data:image/png;base64,' + btoa(binary);
-            })
-            .catch(function() { return null; });
-    }
-
-    cachedQrDataUrl.then(function(qrDataUrl) {
-        // Build HTML template
-        var pdfContainer = buildPDFHTML(results, query, synthesis, userInfo || {}, qrDataUrl);
-
-        // Replace QR code img src with base64 data URL if available
-        if (qrDataUrl) {
-            var qrImg = pdfContainer.querySelector('#qr-code-img');
-            if (qrImg) qrImg.src = qrDataUrl;
-        }
+    // Build HTML template (no QR code)
+        var pdfContainer = buildPDFHTML(results, query, synthesis, userInfo || {});
 
         // Create processing overlay
         var overlay = document.createElement('div');
@@ -311,7 +290,7 @@ function generatePDF(results, query, systemPrompt, synthesis, userInfo) {
     });
 }
 
-function buildPDFHTML(results, query, synthesis, userInfo, qrDataUrl) {
+function buildPDFHTML(results, query, synthesis, userInfo) {
     var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     var totalPages = results.length + 4;  // cover + summary + 5 models + synthesis + about = 9
 
@@ -551,21 +530,12 @@ pagesHTML += `
                 </tr>
             </table>
             
-            <div style="background: #1a3a2e; padding: 20px; border-radius: 8px; margin-top: 30px; overflow: hidden;">
-                <div style="float: left; width: calc(100% - 180px);">
-                    <h3 style="color: white; font-size: 16px; font-weight: 700; margin: 0 0 12px 0;">Let's Talk</h3>
+            <div style="background: #1a3a2e; padding: 20px; border-radius: 8px; margin-top: 30px;">
+                <h3 style="color: white; font-size: 16px; font-weight: 700; margin: 0 0 12px 0;">Let's Talk</h3>
                     <p style="color: #f7f4ea; font-size: 12px; line-height: 1.6; margin: 0 0 12px 0;">Book a free 30-minute consultation to discuss your AI readiness and next steps.</p>
                     <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Email: ben@up-state-ai.com</p>
                     <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Phone: (315) 313-5998</p>
                     <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Web: up-state-ai.com</p>
-                </div>
-                <div style="float: right; width: 160px; text-align: center;">
-                    <div style="background: white; padding: 10px; border-radius: 6px; display: inline-block;">
-                        <img id="qr-code-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsAQAAAABRBrPYAAACA0lEQVR4nO1aUY6CQAztExP9G2+AyR6EvRl4Mz3IJnoD5k8ToZtOgcUxbPwxM4l9HwK2JtjS9rUFTC/Ar17RIjK1txqE+Dyd1i34uGFunwXmhQipDFJwwJ3I9UQ3yNfVleYCC5kY6Z7eA4C9XlfMKHs6OX4QWGRFSG8QD4FUqMojs3tbhqn9axCE0sZTAC6oLcLU3s1DirGC1S2YpaaF0vYgMC9ESGWQLuRIrMO1hJTQEcFMYM6KkMQgxDO04CMpd5RsOBOYs/Jw1jlkOyqFyCtcL9xxuLA0mFlkNY7VZ714SQ6CkrkZnGmRFSNhqvHAvkPjC0mDwPDbDtwSKuudsyIYjcYRyg7fGmvHjaZBx3QxgpFVzWr0tB6ou2M5aP4bBEYwIuRsEArTX+mUiz+K+FTzzKcZ8RCaUA1Ef8PjDL80hp9dO3aWAEIg+9o761RfQ84iK6M0SKTtGIQ0Bt/pcCoILLLyHHRQaJqld75ONcsGHRnxkIsOCgE0BD7owkUQqH3ae3sJqw/dO3eoJaSGQcd9aqpz/wsforoWj0NDVP4Q+Z0MeuFaphuNu0zrnfP0qVMa2DK+ddBRj2Pf9Pe2DFOLMCtfgTSetkoXb1u+fN3J7/Rgdstp4cKyXuawFhsXLuMKxtqxLPfOXl/P8Ss6bcf333RsbJEVIYlBYK8BPyLnx/IXrzl4LfiEH5sAAAAASUVORK5CYII=" alt="QR Code" crossorigin="anonymous" style="display: block; width: 140px; height: 140px;">
-                    </div>
-                </div>
-                <div style="clear: both;"></div>
-            </div>
         </div>
         <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #d0d0d0; padding-top: 10px;">
             <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
