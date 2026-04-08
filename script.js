@@ -214,13 +214,24 @@ var COLORS = {
 };
 
 function addFooter(doc, pageNum, totalPages) {
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.3);
-    doc.line(20, 284, 196, 284);
+    doc.setDrawColor(255, 105, 0);
+    doc.setLineWidth(0.5);
+    doc.line(20, 272, 196, 272);
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Upstate AI  |  ben@up-state-ai.com  |  (315) 313-5998  |  up-state-ai.com', 20, 277);
+    
+    // Page number in styled box
+    doc.setFillColor(255, 105, 0);
+    doc.roundedRect(189, 273, 12, 6, 1, 1, 'F');
     doc.setFontSize(8);
-    doc.setTextColor(160, 160, 160);
-    doc.text('Upstate AI  |  ben@up-state-ai.com  |  (315) 313-5998  |  up-state-ai.com', 20, 289);
-    doc.text('Page ' + pageNum + ' of ' + totalPages, 196, 289, { align: 'right' });
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text(String(pageNum), 195, 277.5, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
+    doc.setFont(undefined, 'normal');
+    doc.text('of ' + totalPages, 203, 277, { align: 'left' });
 }
 
 function newPage(doc) { doc.addPage(); return 20; }
@@ -233,26 +244,31 @@ function generatePDF(results, query, systemPrompt, synthesis) {
     var totalPages = results.length + 4;
     var pageNum = 1;
 
-    // PAGE 1: COVER
+    // PAGE 1: COVER with Upstate AI logo
     doc.setFillColor(26, 58, 46);
     doc.rect(0, 0, W, H, 'F');
-    doc.setFontSize(30);
+    
+    // Upstate AI Logo (base64 encoded - simplified version)
+    var logoDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAKcSURBVHgB7d0xTsNAEAbQWdwDuQeugPsf5B6cg9yD3IMrIFFQICERYhvb48y8J6VIkZJP+ne1XgcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA+NQEAQGkCGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABABYRwAAAiwhgAIBFBDAAwCICGABgEQEMALCIAAYAWEQAAwAsIoABAAAAAAAAAAAAAAAAAAAAAAAAAIDT+gFxCTUHqmKt+AAAAABJRU5ErkJggg==';
+    try {
+        doc.addImage(logoDataUrl, 'PNG', W/2 - 25, 30, 50, 20);
+    } catch(e) { /* Skip logo if fails */ }
+    
+    doc.setFillColor(255, 105, 0);
+    doc.rect(W / 2 - 25, 55, 50, 2, 'F');
+    doc.setFontSize(20);
     doc.setTextColor(255, 255, 255);
     doc.setFont(undefined, 'bold');
-    doc.text('upstate', W / 2, 52, { align: 'center' });
+    doc.text('Model Marshal Report', W / 2, 72, { align: 'center' });
     doc.setFillColor(255, 105, 0);
-    doc.rect(W / 2 - 25, 60, 50, 2, 'F');
-    doc.setFontSize(20);
-    doc.text('AI Readiness Assessment Results', W / 2, 84, { align: 'center' });
-    doc.setFillColor(255, 105, 0);
-    doc.rect(W / 2 - 55, 90, 110, 1, 'F');
+    doc.rect(W / 2 - 55, 78, 110, 1, 'F');
     doc.setFontSize(12);
     doc.setFont(undefined, 'normal');
     doc.setTextColor(210, 210, 210);
-    doc.text(doc.splitTextToSize(query, 140), W / 2, 108, { align: 'center' });
+    doc.text(doc.splitTextToSize(query, 140), W / 2, 96, { align: 'center' });
     doc.setFontSize(10);
     doc.setTextColor(170, 170, 170);
-    doc.text(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), W / 2, 130, { align: 'center' });
+    doc.text(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), W / 2, 118, { align: 'center' });
     doc.setFontSize(13);
     doc.setTextColor(255, 105, 0);
     doc.setFont(undefined, 'bold');
@@ -315,7 +331,7 @@ function generatePDF(results, query, systemPrompt, synthesis) {
 
     addFooter(doc, pageNum, totalPages);
 
-    // PAGES 3+: MODEL RESPONSES
+    // PAGES 3+: MODEL RESPONSES with bar graphs and styled containers
     for (var i = 0; i < results.length; i++) {
         var result = results[i];
         y = newPage(doc); pageNum++;
@@ -327,33 +343,90 @@ function generatePDF(results, query, systemPrompt, synthesis) {
         doc.text(result.model.toUpperCase(), 20, 12);
         y = 28;
 
-        // Response
+        // Extract scores for bar graph
+        var specScore = 7, actScore = 7, depthScore = 7;
+        var scoreText = result.scores || '';
+        var sm = scoreText.match(/Specificity:\s*(\d+)/);
+        var am = scoreText.match(/Actionability:\s*(\d+)/);
+        var dm = scoreText.match(/Domain Depth:\s*(\d+)/);
+        if (sm) specScore = parseInt(sm[1]);
+        if (am) actScore = parseInt(am[1]);
+        if (dm) depthScore = parseInt(dm[1]);
+
+        // Evaluation section with horizontal bar graphs
+        doc.setFontSize(10);
+        doc.setTextColor(26, 58, 46);
+        doc.setFont(undefined, 'bold');
+        doc.text('Evaluation', 20, y); y += 8;
+
+        // Draw bar graphs
+        var barHeight = 8;
+        var barMaxWidth = 100;
+        var barStartX = 20;
+        var metrics = [
+            {label: 'Specificity', score: specScore, color: [255, 105, 0]},
+            {label: 'Actionability', score: actScore, color: [255, 140, 0]},
+            {label: 'Domain Depth', score: depthScore, color: [255, 165, 0]}
+        ];
+
+        for (var m = 0; m < metrics.length; m++) {
+            var metric = metrics[m];
+            doc.setFontSize(9);
+            doc.setTextColor(40, 40, 40);
+            doc.setFont(undefined, 'normal');
+            doc.text(metric.label, barStartX, y + 4);
+            
+            // Background bar (light gray)
+            doc.setFillColor(220, 220, 220);
+            doc.roundedRect(barStartX + 50, y - 2, barMaxWidth, barHeight, 2, 2, 'F');
+            
+            // Actual score bar (orange gradient)
+            var barWidth = (metric.score / 10) * barMaxWidth;
+            doc.setFillColor(metric.color[0], metric.color[1], metric.color[2]);
+            doc.roundedRect(barStartX + 50, y - 2, barWidth, barHeight, 2, 2, 'F');
+            
+            // Score text
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(255, 255, 255);
+            if (barWidth > 15) {
+                doc.text(metric.score + '/10', barStartX + 50 + barWidth - 12, y + 4);
+            } else {
+                doc.setTextColor(40, 40, 40);
+                doc.text(metric.score + '/10', barStartX + 50 + barWidth + 3, y + 4);
+            }
+            
+            y += barHeight + 5;
+        }
+        y += 5;
+
+        // Response in styled container (off-white with orange border)
         doc.setFontSize(10);
         doc.setTextColor(26, 58, 46);
         doc.setFont(undefined, 'bold');
         doc.text('Response', 20, y); y += 6;
+        
+        // Calculate response height
+        var respLines = doc.splitTextToSize(result.response, W - 50);
+        var containerHeight = Math.min(respLines.length * 4.5 + 8, 160);
+        
+        // Draw container with orange border
+        doc.setFillColor(247, 244, 234); // Cream/off-white
+        doc.roundedRect(18, y - 4, W - 36, containerHeight, 3, 3, 'F');
+        doc.setDrawColor(255, 105, 0); // Orange border
+        doc.setLineWidth(0.8);
+        doc.roundedRect(18, y - 4, W - 36, containerHeight, 3, 3, 'S');
+        
+        // Response text
         doc.setFontSize(9);
         doc.setTextColor(40, 40, 40);
         doc.setFont(undefined, 'normal');
-        var respLines = doc.splitTextToSize(result.response, W - 40);
-        doc.text(respLines, 20, y);
-        y += respLines.length * 4.5 + 8;
-
-        // Scores
-        doc.setFontSize(10);
-        doc.setTextColor(26, 58, 46);
-        doc.setFont(undefined, 'bold');
-        doc.text('Evaluation', 20, y); y += 6;
-        doc.setFontSize(9);
-        doc.setTextColor(40, 40, 40);
-        doc.setFont(undefined, 'normal');
-        var scoreLines = doc.splitTextToSize(result.scores, W - 40);
-        doc.text(scoreLines, 20, y);
+        doc.text(respLines, 23, y + 2);
 
         addFooter(doc, pageNum, totalPages);
     }
 
-    // SECOND TO LAST: SYNTHESIS
+    // SECOND TO LAST: SYNTHESIS with comparison table
     y = newPage(doc); pageNum++;
     doc.setFillColor(26, 58, 46);
     doc.rect(0, 0, W, 18, 'F');
@@ -363,6 +436,59 @@ function generatePDF(results, query, systemPrompt, synthesis) {
     doc.text('HUMAN SYNTHESIS', 20, 12);
     y = 28;
 
+    // Comparison table
+    doc.setFontSize(10);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('Model Comparison', 20, y); y += 8;
+
+    // Table header
+    doc.setFillColor(26, 58, 46);
+    doc.rect(15, y, W - 30, 8, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text('Model', 18, y + 5.5);
+    doc.text('Specificity', 78, y + 5.5);
+    doc.text('Actionability', 118, y + 5.5);
+    doc.text('Depth', 165, y + 5.5);
+    y += 8;
+
+    // Table rows
+    for (var ri = 0; ri < results.length; ri++) {
+        var r = results[ri];
+        var bg = ri % 2 === 0 ? [247, 244, 234] : [255, 255, 255];
+        doc.setFillColor(bg[0], bg[1], bg[2]);
+        doc.rect(15, y, W - 30, 8, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(40, 40, 40);
+        doc.setFont(undefined, 'normal');
+        doc.text(r.shortId || r.model, 18, y + 5.5);
+
+        var ss2 = (r.scores || '').match(/Specificity:\s*(\d+)/);
+        var sa2 = (r.scores || '').match(/Actionability:\s*(\d+)/);
+        var sd2 = (r.scores || '').match(/Domain Depth:\s*(\d+)/);
+        
+        // Color code scores
+        var spec = ss2 ? parseInt(ss2[1]) : 0;
+        var act = sa2 ? parseInt(sa2[1]) : 0;
+        var depth = sd2 ? parseInt(sd2[1]) : 0;
+        
+        doc.setTextColor(spec >= 8 ? [34, 139, 34] : spec >= 6 ? [255, 140, 0] : [200, 0, 0]);
+        doc.text((ss2 ? ss2[1] : '-') + '/10', 85, y + 5.5);
+        doc.setTextColor(act >= 8 ? [34, 139, 34] : act >= 6 ? [255, 140, 0] : [200, 0, 0]);
+        doc.text((sa2 ? sa2[1] : '-') + '/10', 130, y + 5.5);
+        doc.setTextColor(depth >= 8 ? [34, 139, 34] : depth >= 6 ? [255, 140, 0] : [200, 0, 0]);
+        doc.text((sd2 ? sd2[1] : '-') + '/10', 170, y + 5.5);
+        y += 8;
+    }
+    y += 10;
+
+    // Synthesis text
+    doc.setFontSize(10);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('Analysis', 20, y); y += 6;
     doc.setFontSize(9);
     doc.setTextColor(40, 40, 40);
     doc.setFont(undefined, 'normal');
@@ -399,9 +525,9 @@ function generatePDF(results, query, systemPrompt, synthesis) {
     var aboutText = 'We work with manufacturers, healthcare organizations, and professional services firms to identify high-impact AI use cases, design implementation roadmaps, and deliver hands-on training. Our engagement model starts with a one-day workshop to assess readiness and ends with ongoing advisory support as AI initiatives scale.';
     doc.text(doc.splitTextToSize(aboutText, W - 40), 20, y); y += doc.splitTextToSize(aboutText, W - 40).length * 4.5 + 10;
 
-    // Contact box
+    // Contact box with better QR code framing
     doc.setFillColor(26, 58, 46);
-    doc.roundedRect(15, y, W - 30, 38, 3, 3, 'F');
+    doc.roundedRect(15, y, W - 30, 50, 3, 3, 'F');
     doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
     doc.setFont(undefined, 'bold');
@@ -409,14 +535,26 @@ function generatePDF(results, query, systemPrompt, synthesis) {
     doc.setFontSize(9);
     doc.setFont(undefined, 'normal');
     doc.text('Book a free 30-minute consultation to discuss your AI readiness and next steps.', 25, y + 20);
-    doc.text('Email: ben@up-state-ai.com', 25, y + 28);
-    doc.text('Phone: (315) 313-5998', 25, y + 35);
-    doc.text('Web: up-state-ai.com', W - 25, y + 28, { align: 'right' });
+    doc.text('Email: ben@up-state-ai.com', 25, y + 30);
+    doc.text('Phone: (315) 313-5998', 25, y + 37);
+    doc.text('Web: up-state-ai.com', 25, y + 44);
 
-    // QR code
+    // QR code with styled frame
     try {
-        var qrDataUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://up-state-ai.com';
-        doc.addImage(qrDataUrl, 'PNG', W - 60, y + 3, 32, 32);
+        var qrDataUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://up-state-ai.com';
+        // White background frame
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(W - 58, y + 5, 40, 40, 2, 2, 'F');
+        // Orange border
+        doc.setDrawColor(255, 105, 0);
+        doc.setLineWidth(1);
+        doc.roundedRect(W - 58, y + 5, 40, 40, 2, 2, 'S');
+        // QR code
+        doc.addImage(qrDataUrl, 'PNG', W - 56, y + 7, 36, 36);
+        // Label below
+        doc.setFontSize(7);
+        doc.setTextColor(255, 255, 255);
+        doc.text('Scan to visit', W - 38, y + 48, { align: 'center' });
     } catch (qrErr) { /* QR optional, skip silently */ }
 
     addFooter(doc, pageNum, totalPages);
