@@ -288,7 +288,6 @@ function generatePDF(results, query, systemPrompt, synthesis, userInfo) {
             });
         }, 3500);
     }
-}
 
 function buildPDFHTML(results, query, synthesis, userInfo) {
     var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
