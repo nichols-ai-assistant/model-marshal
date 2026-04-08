@@ -246,140 +246,172 @@ function newPage(doc) {
     return 20;
 }
 
-// New high-quality PDF generation using HTML + html2canvas approach
-// This replaces the old jsPDF drawing method
-
 function generatePDF(results, query, systemPrompt, synthesis) {
-    var pdfContainer = buildPDFHTML(results, query, systemPrompt, synthesis);
-    
-    // Create processing overlay
-    var overlay = document.createElement('div');
-    overlay.id = 'pdf-overlay';
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1a3a2e; z-index: 10000;';
-    overlay.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: -apple-system, sans-serif;">' +
-        '<div style="width: 56px; height: 56px; border: 4px solid rgba(255,105,0,0.25); border-top-color: #ff6900; border-radius: 50%; animation: pdfspin 0.8s linear infinite; margin: 0 auto 28px;"></div>' +
-        '<div style="font-size: 22px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.02em;">Generating Your Report</div>' +
-        '<div style="font-size: 14px; color: rgba(247,244,234,0.6);">Preparing your Model Marshal comparison report...</div>' +
-        '</div>' +
-        '<style>@keyframes pdfspin { to { transform: rotate(360deg); } }</style>';
-    document.body.appendChild(overlay);
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF({ unit: 'mm', format: 'letter' });
 
-    // Give browser time to render
-    setTimeout(function() {
-        html2canvas(pdfContainer, { scale: 2, useCORS: true, allowTaint: true }).then(function(canvas) {
-            var jsPDFLib = window.jspdf.jsPDF;
-            if (jsPDFLib) {
-                var pdf = new jsPDFLib({ unit: 'px', format: [816, 1056], orientation: 'portrait' });
-                var pageHeight = 1056;
-                var imgData = canvas.toDataURL('image/jpeg', 0.98);
-                var imgHeight = (canvas.height * 816) / canvas.width;
-                var heightLeft = imgHeight;
-                var position = 0;
+    var W = 216, H = 279;
+    var y = 0;
+    var totalPages = results.length + 4;
+    var pageNum = 1;
 
-                pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
-                heightLeft -= pageHeight;
+    // ============================================================
+    // PAGE 1: COVER
+    // ============================================================
+    doc.setFillColor(26, 58, 46);
+    doc.rect(0, 0, W, H, 'F');
 
-                while (heightLeft > 0) {
-                    position -= pageHeight;
-                    pdf.addPage([816, 1056]);
-                    pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
-                    heightLeft -= pageHeight;
-                }
+    doc.setFontSize(30);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text('upstate', W / 2, 52, { align: 'center' });
 
-                var ts = new Date().toISOString().slice(0, 10);
-                pdf.save('model-marshal-report-' + ts + '.pdf');
-                document.getElementById('status').innerHTML = 'PDF generated: model-marshal-report-' + ts + '.pdf';
-            }
-            // Clean up
-            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        }).catch(function(err) {
-            console.error('PDF generation error:', err);
-            alert('PDF generation failed: ' + err.message);
-            document.getElementById('status').innerHTML = 'PDF generation failed';
-            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        });
-    }, 3500);
-}
+    doc.setFillColor(255, 105, 0);
+    doc.rect(W / 2 - 25, 60, 50, 2, 'F');
 
-function buildPDFHTML(results, query, systemPrompt, synthesis) {
-    var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    
-    // Create temporary container
-    var container = document.createElement('div');
-    container.id = 'pdf-report';
-    container.style.cssText = 'position: absolute; left: 0; top: 0; width: 816px; z-index: 9999;';
+    doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
+    doc.text('AI Readiness Assessment Results', W / 2, 84, { align: 'center' });
 
-    // Helper function to escape HTML
-    function escapeHtml(text) {
-        var div = document.createElement('div');
-        div.textContent = text || '';
-        return div.innerHTML;
+    doc.setFillColor(255, 105, 0);
+    doc.rect(W / 2 - 55, 90, 110, 1, 'F');
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(210, 210, 210);
+    var qLines = doc.splitTextToSize(query, 140);
+    doc.text(qLines, W / 2, 108, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(170, 170, 170);
+    var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    doc.text('Generated ' + dateStr, W / 2, 130, { align: 'center' });
+
+    doc.setFontSize(13);
+    doc.setTextColor(255, 105, 0);
+    doc.setFont(undefined, 'bold');
+    doc.text('PUT AI TO WORK', W / 2, H - 48, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(190, 190, 190);
+    doc.setFont(undefined, 'normal');
+    doc.text('ben@up-state-ai.com  |  (315) 313-5998  |  up-state-ai.com', W / 2, H - 38, { align: 'center' });
+
+    // ============================================================
+    // PAGE 2: SUMMARY — Purpose & Methodology
+    // ============================================================
+    y = newPage(doc);
+    pageNum++;
+
+    doc.setFillColor(26, 58, 46);
+    doc.rect(0, 0, W, 18, 'F');
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text('ABOUT THIS ASSESSMENT', 20, 12);
+
+    y = 28;
+
+    // Purpose
+    doc.setFontSize(10);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('Purpose', 20, y);
+    y += 6;
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(9);
+    var purposeText = 'This report compares responses from five leading AI models on a single strategic question relevant to your business context. The goal is not to find a "winner" but to surface the different angles, framings, and blind spots each model brings to the same problem. A human analyst then synthesizes these perspectives into an actionable recommendation.';
+    var purposeLines = doc.splitTextToSize(purposeText, W - 40);
+    doc.text(purposeLines, 20, y);
+    y += purposeLines.length * 4.5 + 10;
+
+    // Methodology
+    doc.setFontSize(10);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('Methodology', 20, y);
+    y += 7;
+
+    var steps = [
+        ['1', 'Query Dispatch', 'Your question is sent simultaneously to five AI models via OpenRouter API, each receiving the same inferred system context.'],
+        ['2', 'Response Scoring', 'Each response is independently evaluated by Claude Sonnet on three dimensions: Specificity, Actionability, and Domain Depth (1-10 scale).'],
+        ['3', 'Human Synthesis', 'A human analyst reviews all five responses and scores to identify patterns, tensions, and the most actionable insight.'],
+        ['4', 'PDF Export', 'This report synthesizes the full process into a branded deliverable suitable for client presentation or internal strategy documentation.']
+    ];
+
+    for (var s = 0; s < steps.length; s++) {
+        var step = steps[s];
+        doc.setFillColor(255, 105, 0);
+        doc.circle(25, y + 3, 4, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text(step[0], 23.5, y + 4.5);
+
+        doc.setFontSize(9);
+        doc.setTextColor(26, 58, 46);
+        doc.setFont(undefined, 'bold');
+        doc.text(step[1], 34, y + 4);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(40, 40, 40);
+        var descLines = doc.splitTextToSize(step[2], W - 54);
+        doc.text(descLines, 34, y + 9);
+        y += 8 + descLines.length * 4.5 + 4;
     }
 
-    // Build cover page
-    var coverHTML = `
-        <div class="pdf-page" style="background: #1a3a2e; color: white; text-align: center; padding: 120px 60px;">
-            <div style="font-size: 48px; font-weight: 800; margin-bottom: 20px; letter-spacing: -0.02em;">upstate</div>
-            <div style="width: 80px; height: 4px; background: #ff6900; margin: 0 auto 50px;"></div>
-            <h1 style="font-size: 32px; font-weight: 700; margin: 0 0 30px; color: white;">Model Marshal</h1>
-            <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 20px; color: #f7f4ea;">AI Model Comparison Report</h2>
-            <div style="width: 120px; height: 2px; background: #ff6900; margin: 40px auto;"></div>
-            <p style="font-size: 16px; line-height: 1.6; color: rgba(247,244,234,0.8); max-width: 600px; margin: 0 auto 40px;">${escapeHtml(query)}</p>
-            <p style="font-size: 14px; color: rgba(247,244,234,0.6);">Generated ${date}</p>
-            <div style="position: absolute; bottom: 60px; left: 0; right: 0;">
-                <div style="font-size: 18px; font-weight: 700; color: #ff6900; margin-bottom: 10px;">PUT AI TO WORK</div>
-                <div style="font-size: 12px; color: rgba(247,244,234,0.7);">ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
-            </div>
-        </div>
-    `;
+    y += 4;
 
-    // Build methodology page
-    var methodHTML = `
-        <div class="pdf-page" style="background: white; padding: 60px;">
-            <h2 style="font-size: 24px; font-weight: 700; color: #1a3a2e; margin-bottom: 30px; border-bottom: 3px solid #ff6900; padding-bottom: 10px;">How Model Marshal Works</h2>
-            
-            <div style="margin-bottom: 30px;">
-                <h3 style="font-size: 18px; font-weight: 600; color: #1a3a2e; margin-bottom: 15px;">1. Query Analysis</h3>
-                <p style="font-size: 14px; line-height: 1.7; color: #333; margin-bottom: 10px;">Your query is analyzed to determine the domain and context, ensuring each model receives a prompt tailored to its strengths.</p>
-            </div>
+    // Models compared
+    doc.setFillColor(247, 244, 234);
+    doc.roundedRect(15, y, W - 30, 28, 3, 3, 'F');
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 120);
+    doc.setFont(undefined, 'bold');
+    doc.text('MODELS COMPARED IN THIS REPORT', 20, y + 7);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(9);
+    var modelNames = '';
+    for (var mi = 0; mi < results.length; mi++) {
+        modelNames += (mi > 0 ? '  \u2022  ' : '') + results[mi].model;
+    }
+    var modelNameLines = doc.splitTextToSize(modelNames, W - 40);
+    doc.text(modelNameLines, 20, y + 14);
+    y += 18;
 
-            <div style="margin-bottom: 30px;">
-                <h3 style="font-size: 18px; font-weight: 600; color: #1a3a2e; margin-bottom: 15px;">2. Model-Specific Prompting</h3>
-                <p style="font-size: 14px; line-height: 1.7; color: #333; margin-bottom: 15px;">Each model receives a customized system prompt:</p>
-                <ul style="font-size: 13px; line-height: 1.8; color: #555; padding-left: 20px;">
-                    <li><strong>Claude Sonnet:</strong> Nuanced analysis and ethical reasoning</li>
-                    <li><strong>ChatGPT:</strong> Structured frameworks and comprehensive coverage</li>
-                    <li><strong>Grok:</strong> Direct, practical, no-nonsense advice</li>
-                    <li><strong>Gemini:</strong> Technical depth and implementation details</li>
-                    <li><strong>Llama:</strong> Open-source focus and data sovereignty</li>
-                </ul>
-            </div>
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text('Scoring provider: Anthropic Claude Sonnet 4.6', 20, y + 6);
 
-            <div style="margin-bottom: 30px;">
-                <h3 style="font-size: 18px; font-weight: 600; color: #1a3a2e; margin-bottom: 15px;">3. Response Scoring</h3>
-                <p style="font-size: 14px; line-height: 1.7; color: #333; margin-bottom: 10px;">Each response is independently evaluated by Claude Sonnet on three dimensions:</p>
-                <ul style="font-size: 13px; line-height: 1.8; color: #555; padding-left: 20px;">
-                    <li><strong>Specificity (1-10):</strong> Concrete details vs. vague platitudes</li>
-                    <li><strong>Actionability (1-10):</strong> Clear executable steps vs. abstract discussion</li>
-                    <li><strong>Domain Depth (1-10):</strong> Expert-level insights vs. surface-level</li>
-                </ul>
-            </div>
+    addFooter(doc, pageNum, totalPages);
 
-            <div style="position: absolute; bottom: 40px; left: 60px; right: 60px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                <div style="float: left; font-size: 11px; font-weight: 700; color: #1a3a2e;">Model Marshal Report</div>
-                <div style="float: right; font-size: 11px; color: #666;">Page 2</div>
-                <div style="clear: both;"></div>
-            </div>
-        </div>
-    `;
+    // ============================================================
+    // PAGE 3+: MODEL RESPONSE PAGES
+    // ============================================================
+    for (var idx = 0; idx < results.length; idx++) {
+        var result = results[idx];
 
-    // Build results pages
-    var resultsHTML = '';
-    results.forEach(function(r, idx) {
+        y = newPage(doc);
+        pageNum++;
+
+        // Header bar
+        doc.setFillColor(26, 58, 46);
+        doc.rect(0, 0, W, 18, 'F');
+        doc.setFontSize(11);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text(result.model + '  \u2014  Model Response ' + (idx + 1) + ' of ' + results.length, 20, 12);
+
+        // Orange accent bar
+        doc.setFillColor(255, 105, 0);
+        doc.rect(0, 18, W, 2.5, 'F');
+
+        y = 26;
+
+        // Model metadata + score badges
         var specScore = 7, actScore = 7, depthScore = 7;
-        var scoreText = r.scores || '';
+        var scoreText = result.scores || '';
         var sm = scoreText.match(/Specificity:\s*(\d+)/);
         var am = scoreText.match(/Actionability:\s*(\d+)/);
         var dm = scoreText.match(/Domain Depth:\s*(\d+)/);
@@ -387,122 +419,294 @@ function buildPDFHTML(results, query, systemPrompt, synthesis) {
         if (am) actScore = parseInt(am[1]);
         if (dm) depthScore = parseInt(dm[1]);
 
-        resultsHTML += `
-            <div class="pdf-page" style="background: white; padding: 60px;">
-                <div style="background: #1a3a2e; color: white; padding: 20px; margin: -60px -60px 30px; border-bottom: 4px solid #ff6900;">
-                    <h2 style="font-size: 28px; font-weight: 700; margin: 0;">${escapeHtml(r.model)}</h2>
-                </div>
+        function scoreColor(s) {
+            return s >= 8 ? [45, 87, 69] : s >= 6 ? [255, 165, 0] : [180, 50, 50];
+        }
 
-                <div style="display: flex; gap: 15px; margin-bottom: 30px;">
-                    <div style="flex: 1; background: ${specScore >= 7 ? '#e8f5e9' : '#fff3e0'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${specScore >= 7 ? '#4caf50' : '#ff9800'};">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Specificity</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #1a3a2e;">${specScore}/10</div>
-                    </div>
-                    <div style="flex: 1; background: ${actScore >= 7 ? '#e8f5e9' : '#fff3e0'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${actScore >= 7 ? '#4caf50' : '#ff9800'};">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Actionable</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #1a3a2e;">${actScore}/10</div>
-                    </div>
-                    <div style="flex: 1; background: ${depthScore >= 7 ? '#e8f5e9' : '#fff3e0'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${depthScore >= 7 ? '#4caf50' : '#ff9800'};">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Depth</div>
-                        <div style="font-size: 24px; font-weight: 700; color: #1a3a2e;">${depthScore}/10</div>
-                    </div>
-                </div>
+        // Model name badge
+        doc.setFillColor(26, 58, 46);
+        doc.roundedRect(15, y, 62, 10, 2, 2, 'F');
+        doc.setFontSize(7.5);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont(undefined, 'bold');
+        doc.text('MODEL: ' + result.model.toUpperCase(), 18, y + 6.5);
 
-                <h3 style="font-size: 16px; font-weight: 600; color: #1a3a2e; margin-bottom: 15px;">Response</h3>
-                <div style="font-size: 13px; line-height: 1.8; color: #333; background: #f7f4ea; padding: 20px; border-radius: 8px; max-height: 600px; overflow: hidden;">
-                    ${escapeHtml(r.response).replace(/\n/g, '<br>')}
-                </div>
+        // Score badges
+        var badges = [
+            ['Specific: ' + specScore + '/10', specScore],
+            ['Actionable: ' + actScore + '/10', actScore],
+            ['Depth: ' + depthScore + '/10', depthScore]
+        ];
+        for (var bi = 0; bi < badges.length; bi++) {
+            var bx = 84 + bi * 44;
+            var bc = scoreColor(badges[bi][1]);
+            doc.setFillColor(bc[0], bc[1], bc[2]);
+            doc.roundedRect(bx, y, 42, 10, 2, 2, 'F');
+            doc.setFontSize(7.5);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont(undefined, 'bold');
+            doc.text(badges[bi][0], bx + 2, y + 6.5);
+        }
 
-                <div style="position: absolute; bottom: 40px; left: 60px; right: 60px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                    <div style="float: left; font-size: 11px; font-weight: 700; color: #1a3a2e;">Model Marshal Report</div>
-                    <div style="float: right; font-size: 11px; color: #666;">Page ${3 + idx}</div>
-                    <div style="clear: both;"></div>
-                </div>
-            </div>
-        `;
-    });
+        y += 16;
 
-    // Build about page
-    var aboutHTML = `
-        <div class="pdf-page" style="background: white; padding: 60px;">
-            <div style="background: #1a3a2e; padding: 15px; margin: -60px -60px 40px;">
-                <h2 style="font-size: 20px; font-weight: 700; margin: 0; color: white;">ABOUT UPSTATE AI</h2>
-            </div>
+        // System prompt (cream box)
+        doc.setFillColor(247, 244, 234);
+        doc.roundedRect(15, y, W - 30, 20, 3, 3, 'F');
+        doc.setFillColor(255, 105, 0);
+        doc.rect(15, y, 3, 20, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(120, 120, 120);
+        doc.setFont(undefined, 'bold');
+        doc.text('SYSTEM PROMPT', 22, y + 5.5);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(40, 40, 40);
+        doc.setFontSize(8.5);
+        var spText = result.systemPrompt || 'You are an expert consultant specializing in business strategy and operational efficiency.';
+        var spLines = doc.splitTextToSize(spText, W - 48);
+        doc.text(spLines.slice(0, 2), 22, y + 11);
+        y += 26;
 
-            <p style="font-size: 14px; font-weight: 600; line-height: 1.8; color: #1a3a2e; margin-bottom: 15px;">
-                We help businesses in manufacturing, professional services, and logistics build practical AI systems that solve real problems.
-            </p>
-            <p style="font-size: 13px; line-height: 1.7; color: #555; margin-bottom: 30px;">
-                No hype, no generic advice. Just honest assessments, clear implementation plans, and hands-on support from people who understand both the technology and your industry.
-            </p>
+        // Response (off-white container with forest green left border)
+        doc.setFillColor(250, 248, 242);
+        doc.roundedRect(15, y, W - 30, 128, 3, 3, 'F');
+        doc.setFillColor(26, 58, 46);
+        doc.rect(15, y, 3, 128, 'F');
 
-            <div style="background: #f7f4ea; padding: 20px; border-left: 4px solid #ff6900; margin-bottom: 30px;">
-                <h3 style="font-size: 14px; font-weight: 700; color: #1a3a2e; margin: 0 0 10px;">Ben Nichols, Founder</h3>
-                <p style="font-size: 12px; line-height: 1.7; color: #555; margin: 0;">
-                    AI professor at Syracuse University and consultant to manufacturers, professional services firms, and technology companies. Built and deployed machine learning systems in production environments for over a decade.
-                </p>
-            </div>
+        doc.setFontSize(7.5);
+        doc.setTextColor(26, 58, 46);
+        doc.setFont(undefined, 'bold');
+        doc.text('RESPONSE', 22, y + 6);
 
-            <h3 style="font-size: 16px; font-weight: 600; color: #1a3a2e; margin-bottom: 20px;">Our Services</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 40px;">
-                <div style="background: #f7f4ea; padding: 15px; border-radius: 8px;">
-                    <h4 style="font-size: 13px; font-weight: 700; color: #1a3a2e; margin: 0 0 8px;">AI Workshop</h4>
-                    <p style="font-size: 11px; line-height: 1.6; color: #666; margin: 0;">Half-day interactive session for leadership teams covering industry-specific use cases and hands-on opportunity scoring.</p>
-                </div>
-                <div style="background: #f7f4ea; padding: 15px; border-radius: 8px;">
-                    <h4 style="font-size: 13px; font-weight: 700; color: #1a3a2e; margin: 0 0 8px;">AI Audit</h4>
-                    <p style="font-size: 11px; line-height: 1.6; color: #666; margin: 0;">Full operational analysis with data maturity evaluation and prioritized roadmap with ROI estimates.</p>
-                </div>
-                <div style="background: #f7f4ea; padding: 15px; border-radius: 8px;">
-                    <h4 style="font-size: 13px; font-weight: 700; color: #1a3a2e; margin: 0 0 8px;">AI Execution</h4>
-                    <p style="font-size: 11px; line-height: 1.6; color: #666; margin: 0;">End-to-end project management from technical planning through vendor evaluation to deployment and training.</p>
-                </div>
-                <div style="background: #f7f4ea; padding: 15px; border-radius: 8px;">
-                    <h4 style="font-size: 13px; font-weight: 700; color: #1a3a2e; margin: 0 0 8px;">AI Advisory</h4>
-                    <p style="font-size: 11px; line-height: 1.6; color: #666; margin: 0;">Monthly strategic check-ins, on-call guidance for AI decisions, and quarterly opportunity reviews.</p>
-                </div>
-            </div>
+        doc.setFontSize(9);
+        doc.setTextColor(40, 40, 40);
+        doc.setFont(undefined, 'normal');
+        var respLines = doc.splitTextToSize(result.response, W - 42);
+        doc.text(respLines.slice(0, 40), 22, y + 13);
+        y += 14 + 40 * 4.5;
 
-            <div style="background: #1a3a2e; padding: 30px; border-radius: 8px; color: white;">
-                <h3 style="font-size: 18px; font-weight: 700; margin: 0 0 15px;">Let's Talk</h3>
-                <p style="font-size: 13px; line-height: 1.7; margin: 0 0 15px; color: rgba(247,244,234,0.9);">
-                    Book a free 30-minute consultation to discuss your AI readiness and next steps.
-                </p>
-                <div style="font-size: 12px; line-height: 1.8; color: rgba(247,244,234,0.8);">
-                    <div>Email: ben@up-state-ai.com</div>
-                    <div>Phone: (315) 313-5998</div>
-                    <div>Web: up-state-ai.com</div>
-                </div>
-            </div>
+        if (respLines.length > 40) {
+            doc.setTextColor(120, 120, 120);
+            doc.setFontSize(8);
+            doc.text('[+ ' + (respLines.length - 40) + ' more lines — see full response in app]', 22, y);
+            y += 6;
+        }
 
-            <div style="position: absolute; bottom: 40px; left: 60px; right: 60px; border-top: 1px solid #e0e0e0; padding-top: 15px;">
-                <div style="float: left; font-size: 11px; font-weight: 700; color: #1a3a2e;">Model Marshal Report</div>
-                <div style="float: right; font-size: 11px; color: #666;">Page ${3 + results.length}</div>
-                <div style="clear: both;"></div>
-            </div>
-        </div>
-    `;
+        y += 8;
 
-    container.innerHTML = `
-        <style>
-            @page { margin: 0; }
-            * { box-sizing: border-box; }
-            .pdf-page {
-                width: 816px;
-                height: 1056px;
-                page-break-after: always;
-                page-break-inside: avoid;
-                position: relative;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-                overflow: hidden;
-            }
-        </style>
-        ${coverHTML}
-        ${methodHTML}
-        ${resultsHTML}
-        ${aboutHTML}
-    `;
+        // Scores breakdown
+        doc.setFillColor(247, 244, 234);
+        doc.roundedRect(15, y, W - 30, 38, 3, 3, 'F');
+        doc.setFillColor(26, 58, 46);
+        doc.rect(15, y, 3, 38, 'F');
+        doc.setFontSize(7.5);
+        doc.setTextColor(26, 58, 46);
+        doc.setFont(undefined, 'bold');
+        doc.text('EVALUATION SCORES', 22, y + 7);
+        doc.setFontSize(9);
+        doc.setTextColor(40, 40, 40);
+        doc.setFont(undefined, 'normal');
+        var scoreLines = doc.splitTextToSize(result.scores, W - 42);
+        doc.text(scoreLines.slice(0, 5), 22, y + 14);
 
-    document.body.appendChild(container);
-    return container;
+        addFooter(doc, pageNum, totalPages);
+    }
+
+    // ============================================================
+    // SYNTHESIS PAGE
+    // ============================================================
+    y = newPage(doc);
+    pageNum++;
+
+    doc.setFillColor(26, 58, 46);
+    doc.rect(0, 0, W, 18, 'F');
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text('SYNTHESIS  \u2014  Human Analysis', 20, 12);
+
+    y = 28;
+
+    // Query reminder
+    doc.setFillColor(247, 244, 234);
+    doc.roundedRect(15, y, W - 30, 18, 3, 3, 'F');
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 120);
+    doc.setFont(undefined, 'bold');
+    doc.text('ORIGINAL QUERY', 20, y + 6);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(9);
+    var q2Lines = doc.splitTextToSize(query, W - 40);
+    doc.text(q2Lines.slice(0, 2), 20, y + 12);
+    y += 24;
+
+    // Analyst synthesis
+    doc.setFontSize(9);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('ANALYST SYNTHESIS', 15, y);
+    y += 7;
+
+    doc.setFillColor(255, 105, 0);
+    doc.rect(15, y - 3, 3, 32, 'F');
+    doc.setFillColor(247, 244, 234);
+    doc.roundedRect(18, y - 3, W - 33, 35, 3, 3, 'F');
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(9.5);
+    var synthLines = doc.splitTextToSize(synthesis, W - 46);
+    doc.text(synthLines.slice(0, 7), 23, y + 5);
+    y += 42;
+
+    // Comparison table
+    doc.setFontSize(9);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('MODEL COMPARISON AT A GLANCE', 15, y);
+    y += 7;
+
+    doc.setFillColor(26, 58, 46);
+    doc.rect(15, y, W - 30, 8, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text('Model', 18, y + 5.5);
+    doc.text('Specificity', 78, y + 5.5);
+    doc.text('Actionability', 118, y + 5.5);
+    doc.text('Depth', 158, y + 5.5);
+    y += 8;
+
+    for (var ri = 0; ri < results.length; ri++) {
+        var r = results[ri];
+        var bg = ri % 2 === 0 ? [247, 244, 234] : [255, 255, 255];
+        doc.setFillColor(bg[0], bg[1], bg[2]);
+        doc.rect(15, y, W - 30, 8, 'F');
+        doc.setFontSize(8);
+        doc.setTextColor(40, 40, 40);
+        doc.setFont(undefined, 'normal');
+        doc.text(r.model, 18, y + 5.5);
+
+        var ss2 = (r.scores || '').match(/Specificity:\s*(\d+)/);
+        var sa2 = (r.scores || '').match(/Actionability:\s*(\d+)/);
+        var sd2 = (r.scores || '').match(/Domain Depth:\s*(\d+)/);
+        doc.text((ss2 ? ss2[1] : '-') + '/10', 80, y + 5.5);
+        doc.text((sa2 ? sa2[1] : '-') + '/10', 120, y + 5.5);
+        doc.text((sd2 ? sd2[1] : '-') + '/10', 162, y + 5.5);
+        y += 8;
+    }
+
+    addFooter(doc, pageNum, totalPages);
+
+    // ============================================================
+    // LAST PAGE: ABOUT UPSTATE AI (exact match to assessment PDF)
+    // ============================================================
+    y = newPage(doc);
+    pageNum++;
+
+    doc.setFillColor(26, 58, 46);
+    doc.rect(0, 0, W, 18, 'F');
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text('ABOUT UPSTATE AI', 20, 12);
+
+    y = 28;
+
+    doc.setFontSize(10);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('We help businesses in manufacturing, professional services, and logistics build practical AI systems that solve real problems.', 15, y);
+    y += 6;
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(9);
+    doc.text('No hype, no generic advice. Just honest assessments, clear implementation plans, and hands-on support from people who understand both the technology and your industry.', 15, y, { maxWidth: W - 30 });
+    y += 16;
+
+    // Founder bio
+    doc.setFillColor(247, 244, 234);
+    doc.roundedRect(15, y, W - 30, 24, 3, 3, 'F');
+    doc.setFillColor(255, 105, 0);
+    doc.rect(15, y, 4, 24, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('Ben Nichols, Founder', 23, y + 7);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(8.5);
+    doc.text('AI professor at Syracuse University and consultant to manufacturers, professional services firms, and technology companies.', 23, y + 13);
+    doc.text('Built and deployed machine learning systems in production environments for over a decade.', 23, y + 19);
+    y += 30;
+
+    // Services heading
+    doc.setFontSize(9);
+    doc.setTextColor(26, 58, 46);
+    doc.setFont(undefined, 'bold');
+    doc.text('Our Services', 15, y);
+    y += 8;
+
+    // 2x2 service grid
+    var services = [
+        ['AI Workshop', 'Half-day interactive session for leadership teams covering industry-specific use cases and hands-on opportunity scoring.'],
+        ['AI Audit', 'Full operational analysis with data maturity evaluation and prioritized roadmap with ROI estimates.'],
+        ['AI Execution', 'End-to-end project management from technical planning through vendor evaluation to deployment and training.'],
+        ['AI Advisory', 'Monthly strategic check-ins, on-call guidance for AI decisions, and quarterly opportunity reviews.']
+    ];
+
+    for (var si = 0; si < services.length; si++) {
+        var svc = services[si];
+        var col = si % 2;
+        var row = Math.floor(si / 2);
+        var sx = 15 + col * 95;
+        var sy = y + row * 24;
+
+        doc.setFillColor(247, 244, 234);
+        doc.roundedRect(sx, sy, 88, 20, 3, 3, 'F');
+        doc.setFontSize(9);
+        doc.setTextColor(26, 58, 46);
+        doc.setFont(undefined, 'bold');
+        doc.text(svc[0], sx + 5, sy + 7);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(120, 120, 120);
+        doc.setFontSize(7.5);
+        var svcDescLines = doc.splitTextToSize(svc[1], 80);
+        doc.text(svcDescLines.slice(0, 2), sx + 5, sy + 13);
+    }
+
+    y += 50;
+
+    // Let's Talk box with QR code
+    doc.setFillColor(26, 58, 46);
+    doc.roundedRect(15, y, W - 30, 38, 3, 3, 'F');
+
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.text("Let's Talk", 25, y + 12);
+
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text('Book a free 30-minute consultation to discuss your AI readiness and next steps.', 25, y + 20);
+
+    doc.setFontSize(8.5);
+    doc.text('Email: ben@up-state-ai.com', 25, y + 28);
+    doc.text('Phone: (315) 313-5998', 25, y + 35);
+    doc.text('Web: up-state-ai.com', 25, y + 42);
+
+    // QR code
+    try {
+        var qrDataUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://up-state-ai.com';
+        doc.addImage(qrDataUrl, 'PNG', W - 60, y + 3, 32, 32);
+    } catch (qrErr) {
+        // QR code optional — skip silently if API unreachable
+    }
+
+    addFooter(doc, pageNum, pageNum);
+
+    // Auto-download
+    var ts = new Date().toISOString().slice(0, 10);
+    doc.save('model-marshal-report-' + ts + '.pdf');
+    document.getElementById('status').innerHTML = 'PDF generated: model-marshal-report-' + ts + '.pdf';
 }
