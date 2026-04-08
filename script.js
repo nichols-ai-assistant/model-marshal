@@ -1,2 +1,517 @@
-// Model Marshal Script v3
-var TEST_MODE=true;var globalResults=[];var cachedQrDataUrl=null;document.addEventListener('DOMContentLoaded',function(){var dispatchBtn=document.getElementById('dispatchBtn');var generatePdfBtn=document.getElementById('generatePdfBtn');var status=document.getElementById('status');if(TEST_MODE){document.getElementById('testModeBanner').style.display='block';status.className='status-info';status.innerHTML='TEST MODE — Using pre-populated sample data.';document.getElementById('name').value='Jane Smith';document.getElementById('title').value='VP of Operations';document.getElementById('company').value='Acme Manufacturing';document.getElementById('domain').value='acmemfg.com';document.getElementById('email').value='jane@acmemfg.com';document.getElementById('synthesis').value='Key insight: Models agree on data infrastructure as the foundation but diverge on approach. Grok is most direct, Gemini most technical, GPT most structured, Llama most privacy-focused, Claude most balanced. Recommended: start with predictive maintenance.';loadTestData();}else{status.innerHTML='Ready. Enter your info and click Dispatch.';}dispatchBtn.addEventListener('click',async function(){var apiKey=document.getElementById('apiKey').value.trim();var query=document.getElementById('query').value.trim();if(!query){status.className='status-error';status.innerHTML='Please enter a question.';return;}if(TEST_MODE){status.className='status-info';status.innerHTML='TEST MODE — Using sample data.';loadTestData();return;}if(!apiKey){status.className='status-error';status.innerHTML='Please enter your OpenRouter API key.';return;}dispatchBtn.disabled=true;dispatchBtn.innerHTML='Querying...';status.className='status-info';status.innerHTML='Inferring context and dispatching to models...';globalResults=[];var models=[{name:'Claude Sonnet 4.6',id:'anthropic/claude-sonnet-4.6',shortId:'Sonnet 4.6'},{name:'ChatGPT',id:'openai/gpt-5.4',shortId:'GPT-5.4'},{name:'Grok 4 Fast',id:'x-ai/grok-4-fast',shortId:'Grok 4 Fast'},{name:'Gemini 2.5 Flash',id:'google/gemini-2.5-flash',shortId:'Gemini 2.5 Flash'},{name:'Llama 3.3 70B',id:'meta-llama/llama-3.3-70b-instruct',shortId:'Llama 3.3'}];async function callModel(modelId,messages){var response=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Authorization':'Bearer '+apiKey,'Content-Type':'application/json','HTTP-Referer':window.location.origin,'X-Title':'Model Marshal'},body:JSON.stringify({model:modelId,messages:messages,temperature:0.7,max_tokens:1200})});if(!response.ok){var err=await response.text();throw new Error('API error '+response.status+': '+err);}var data=await response.json();return data.choices[0].message.content.trim();}function getModelPrompt(modelName){var prompts={'Claude Sonnet 4.6':'You are a nuanced expert consultant.','ChatGPT':'You are a strategic consultant using established frameworks.','Grok 4 Fast':'You are a no-nonsense operator.','Gemini 2.5 Flash':'You are a technical expert.','Llama 3.3 70B':'You are an expert focused on open-source solutions.'};return prompts[modelName]||'You are a business strategy expert.';}try{var domain=await callModel('anthropic/claude-sonnet-4.6',[{role:'user',content:'In 2-3 words, identify the main domain of this query: '+query}]);for(var i=0;i<models.length;i++){var model=models[i];status.innerHTML='Querying '+model.name+'...';var messages=[{role:'system',content:getModelPrompt(model.name)+' Context: '+domain},{role:'user',content:query}];var response=await callModel(model.id,messages);globalResults.push({model:model.name,shortId:model.shortId,response:response,scores:'Specificity: 7/10 Actionability: 7/10 Domain Depth: 7/10',strengths:'See response.',weaknesses:'See response.'});}renderResults(globalResults);status.className='status-success';status.innerHTML='All models responded.';}catch(err){status.className='status-error';status.innerHTML='Error: '+err.message;}finally{dispatchBtn.disabled=false;dispatchBtn.innerHTML='Dispatch to Models';}});generatePdfBtn.addEventListener('click',function(){var submitter={name:document.getElementById('name').value.trim(),title:document.getElementById('title').value.trim(),company:document.getElementById('company').value.trim(),domain:document.getElementById('domain').value.trim(),email:document.getElementById('email').value.trim()};var query=document.getElementById('query').value.trim();var synthesis=document.getElementById('synthesis').value.trim();var status=document.getElementById('status');if(!globalResults||globalResults.length===0){status.className='status-error';status.innerHTML='No results to export. Click Dispatch first.';return;}generatePdf(globalResults,query,submitter,synthesis);});});function loadTestData(){globalResults=[{model:'Claude Sonnet 4.6',shortId:'Sonnet 4.6',response:'AI adoption in manufacturing requires a phased approach balancing operational disruption with measurable ROI. Start with non-critical workflows to establish baselines. Key focus: predictive maintenance, quality control automation, supply chain optimization. Identify your highest-frequency highest-variance process first — that is where ML has the most to learn.',scores:'Specificity: 9/10 Actionability: 9/10 Domain Depth: 8/10',strengths:'Concrete process recommendations. Ethical and practical constraints acknowledged. Good at identifying risks.',weaknesses:'Less specific on timelines and budgets. Can be overly cautious.'},{model:'ChatGPT',shortId:'GPT-5.4',response:'AI readiness hinges on three pillars: data infrastructure maturity, workforce adaptability, and executive commitment. Priority: high-frequency high-variance processes. Framework: McKinsey three-horizon model. Budget: $50K pilots to $500K+ enterprise deployments.',scores:'Specificity: 7/10 Actionability: 7/10 Domain Depth: 7/10',strengths:'Strong frameworks. Good budget ranges. Comprehensive coverage.',weaknesses:'Less field-specific depth. Can feel generic.'},{model:'Grok 4 Fast',shortId:'Grok 4 Fast',response:'Most AI projects fail because companies skip the groundwork. Get your data right first. Pick one pain point with clear ROI. Run it as an experiment. Scale only what proves itself. Treat this as an engineering problem. Set measurable targets.',scores:'Specificity: 8/10 Actionability: 9/10 Domain Depth: 8/10',strengths:'Most practical. No consulting fluff. Clear accountability. Direct execution path.',weaknesses:'Can oversimplify organizational change. Less AI technique detail.'},{model:'Gemini 2.5 Flash',shortId:'Gemini 2.5 Flash',response:'Three AI-manufacturing alignment areas: computer vision for defect detection, time-series forecasting for demand planning, and NLP for maintenance documentation. Timelines: 6 weeks to 6 months. Budget: $50K-$500K. Key risk: data quality needs 3-6 months cleanup.',scores:'Specificity: 8/10 Actionability: 7/10 Domain Depth: 8/10',strengths:'Technically specific with timelines. Three clear AI use cases. Strong on data quality.',weaknesses:'More technical than business-aligned. Needs technical team.',},{model:'Llama 3.3 70B',shortId:'Llama 3.3',response:'Open-source on-premise LLMs keep sensitive operational data in-house. Trade-off: requires internal ML expertise for fine-tuning and deployment. Best for companies with existing data science teams.',scores:'Specificity: 7/10 Actionability: 6/10 Domain Depth: 7/10',strengths:'Privacy and data sovereignty angle. On-premise option. Good for regulated industries.',weaknesses:'Fewest concrete steps. Most dependent on internal expertise.'}];renderResults(globalResults);document.getElementById('synthesisCard').style.display='block';document.getElementById('generatePdfBtn').style.display='inline-block';}function renderResults(results){var container=document.getElementById('modelsContainer');var html='';for(var i=0;i<results.length;i++){var r=results[i];html+='<div class="model-card"><h3>'+r.shortId+'</h3><div class="scores" style="color:#ffd700;font-size:0.8rem;margin:0.5rem 0;white-space:pre-wrap;">'+r.scores.replace(/\n/g,'<br>')+'</div><div style="color:#c9d1d9;font-size:0.85rem;line-height:1.5;white-space:pre-wrap;">'+r.response.replace(/\n/g,'<br>')+'</div></div>';}container.innerHTML=html;document.getElementById('synthesisCard').style.display='block';document.getElementById('generatePdfBtn').style.display='inline-block';}function generatePdf(results,query,submitter,synthesis){var status=document.getElementById('status');status.className='status-info';status.innerHTML='Building PDF...';var ts=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});var container=buildPDFHTML(results,query,submitter,synthesis,ts);status.innerHTML='Rendering PDF...';setTimeout(function(){html2canvas(container,{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff'}).then(function(canvas){var jsPDF=window.jspdf.jsPDF;var doc=new jsPDF({unit:'px',format:[816,1056],orientation:'portrait'});doc.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,816,1056);doc.save('model-marshal-report-'+new Date().toISOString().slice(0,10)+'.pdf');status.className='status-success';status.innerHTML='PDF downloaded!';setTimeout(function(){document.body.removeChild(container);},500);}).catch(function(err){status.className='status-error';status.innerHTML='PDF error: '+err.message;});},300);}function buildPDFHTML(results,query,submitter,synthesis,ts){function esc(t){if(!t)return'';var d=document.createElement('div');d.textContent=t;return d.innerHTML;}function scoreBar(v){var p=v/10*100;return'<div style="background:#e8e8e8;border-radius:4px;height:8px;width:100%;"><div style="background:#3ecf8e;height:8px;border-radius:4px;width:'+p+'%;"></div></div>';}function scoreFrom(s){var m=s.match(/(\d+)\s*\/\s*10/);return m?parseInt(m[1]):5;}var c=document.createElement('div');c.style.cssText='position:fixed;left:-9999px;top:0;width:816px;font-family:-apple-system,sans-serif;background:#fff;z-index:99999;';var pages='';var n=results.length+3;var si='';if(submitter.name)si+='<div style="font-size:14px;color:rgba(247,244,234,0.9);">'+esc(submitter.name)+'</div>';if(submitter.title)si+='<div style="font-size:12px;color:rgba(247,244,234,0.7);">'+esc(submitter.title)+'</div>';if(submitter.company)si+='<div style="font-size:12px;color:rgba(247,244,234,0.7);">'+esc(submitter.company)+'</div>';if(submitter.email)si+='<div style="font-size:11px;color:rgba(247,244,234,0.6);">'+esc(submitter.email)+'</div>';if(submitter.domain)si+='<div style="font-size:11px;color:rgba(247,244,234,0.6);">'+esc(submitter.domain)+'</div>';pages+='<div style="width:816px;height:1056px;background:#1a3a2e;position:relative;font-family:-apple-system,sans-serif;"><div style="padding:80px 60px;text-align:center;"><div style="font-size:28px;font-weight:700;color:#3ecf8e;margin:0 auto 40px;letter-spacing:-0.02em;">UPSTATE AI</div><div style="width:60px;height:3px;background:#ff6900;margin:0 auto 30px;"></div><h1 style="font-size:30px;font-weight:700;color:#f7f4ea;margin:20px 0;">Model Marshal Report</h1><div style="width:60px;height:3px;background:#ff6900;margin:30px auto;"></div><div style="max-width:500px;margin:40px auto;text-align:left;"><div style="font-size:10px;color:rgba(247,244,234,0.5);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Query</div><div style="font-size:14px;color:#f7f4ea;line-height:1.6;background:rgba(255,255,255,0.05);padding:16px;border-radius:8px;">'+esc(query)+'</div></div><div style="max-width:500px;margin:30px auto 0;text-align:left;">'+(si||'<div style="font-size:12px;color:rgba(247,244,234,0.5);">Submitted by anonymous</div>')+'</div></div><div style="position:absolute;bottom:20px;left:40px;right:40px;border-top:1px solid rgba(247,244,234,0.15);padding-top:10px;font-size:10px;color:rgba(247,244,234,0.4);"><div style="float:left;">Upstate AI &nbsp;|&nbsp; ben@up-state-ai.com &nbsp;|&nbsp; up-state-ai.com</div><div style="float:right;">'+esc(ts)+' &nbsp;|&nbsp; Page 1 of '+n+'</div></div></div>';var rows='';for(var i=0;i<results.length;i++){var r=results[i];rows+='<div style="display:grid;grid-template-columns:140px 1fr;border-bottom:1px solid #eee;padding:12px 0;"><div style="font-weight:600;color:#3ecf8e;font-size:11px;">'+esc(r.shortId)+'</div><div style="font-size:10px;color:#555;line-height:1.5;"><div><strong>S:</strong> '+esc(r.strengths)+'</div><div style="margin-top:4px;"><strong>W:</strong> '+esc(r.weaknesses)+'</div></div></div>';}pages+='<div style="width:816px;min-height:1056px;background:#fff;position:relative;font-family:-apple-system,sans-serif;page-break-after:always;"><div style="background:#1a3a2e;padding:20px 40px;"><div style="font-size:11px;color:#ff6900;text-transform:uppercase;letter-spacing:0.1em;">Analysis Summary</div><div style="font-size:18px;font-weight:700;color:#f7f4ea;margin-top:4px;">Model Comparison &amp; Key Findings</div></div><div style="padding:30px 40px;"><div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;">The Query</div><div style="background:#f8f8f8;border-left:3px solid #ff6900;padding:12px 16px;font-size:13px;color:#333;line-height:1.6;margin-bottom:30px;border-radius:0 4px 4px 0;">'+esc(query)+'</div><div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;">Model Profiles &mdash; Strengths &amp; Weaknesses</div>'+rows+'</div><div style="position:absolute;bottom:20px;left:40px;right:40px;border-top:1px solid #eee;padding-top:10px;font-size:10px;color:#aaa;"><div style="float:left;">Upstate AI &nbsp;|&nbsp; ben@up-state-ai.com &nbsp;|&nbsp; up-state-ai.com</div><div style="float:right;">Page 2 of '+n+'</div></div></div>';for(var pi=0;pi<results.length;pi++){var r=results[pi];var sp=scoreFrom(r.scores.split(' ')[0]||'');var ac=scoreFrom(r.scores.split(' ')[2]||'');var dp=scoreFrom(r.scores.split(' ')[4]||'');var pn=pi+3;pages+='<div style="width:816px;min-height:1056px;background:#fff;position:relative;font-family:-apple-system,sans-serif;page-break-after:always;"><div style="background:#1a3a2e;padding:20px 40px;"><div style="font-size:11px;color:#ff6900;text-transform:uppercase;letter-spacing:0.1em;">Provider Response &mdash; '+pn+' of '+n+'</div><div style="font-size:18px;font-weight:700;color:#f7f4ea;margin-top:4px;">'+esc(r.model)+'</div></div><div style="padding:30px 40px;"><div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Response</div><div style="font-size:12px;color:#333;line-height:1.7;white-space:pre-wrap;background:#fafafa;padding:20px;border-radius:8px;margin-bottom:24px;">'+esc(r.response)+'</div><div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Evaluation Scores</div><div style="background:#f8f8f8;border-radius:8px;padding:20px;"><div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:4px;"><span>Specificity</span><span style="color:#3ecf8e;font-weight:600;">'+sp+'/10</span></div>'+scoreBar(sp)+'</div><div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:4px;"><span>Actionability</span><span style="color:#3ecf8e;font-weight:600;">'+ac+'/10</span></div>'+scoreBar(ac)+'</div><div><div style="display:flex;justify-content:space-between;font-size:11px;color:#555;margin-bottom:4px;"><span>Domain Depth</span><span style="color:#3ecf8e;font-weight:600;">'+dp+'/10</span></div>'+scoreBar(dp)+'</div></div><div style="margin-top:16px;font-size:11px;color:#555;line-height:1.6;"><strong style="color:#3ecf8e;">+</strong> '+esc(r.strengths)+' &nbsp;&nbsp; <strong style="color:#ff6900;">-</strong> '+esc(r.weaknesses)+'</div></div><div style="position:absolute;bottom:20px;left:40px;right:40px;border-top:1px solid #eee;padding-top:10px;font-size:10px;color:#aaa;"><div style="float:left;">Upstate AI &nbsp;|&nbsp; ben@up-state-ai.com &nbsp;|&nbsp; up-state-ai.com</div><div style="float:right;">Page '+pn+' of '+n+'</div></div></div>';}pages+='<div style="width:816px;min-height:1056px;background:#fff;position:relative;font-family:-apple-system,sans-serif;page-break-after:always;"><div style="background:#1a3a2e;padding:20px 40px;"><div style="font-size:11px;color:#ff6900;text-transform:uppercase;letter-spacing:0.1em;">Human Synthesis</div><div style="font-size:18px;font-weight:700;color:#f7f4ea;margin-top:4px;">Analyst Assessment &amp; Recommendation</div></div><div style="padding:30px 40px;"><div style="font-size:12px;color:#555;line-height:1.8;white-space:pre-wrap;background:#f8f8f8;padding:24px;border-radius:8px;border-left:4px solid #3ecf8e;">'+esc(synthesis||'No synthesis provided.')+'</div></div><div style="position:absolute;bottom:20px;left:40px;right:40px;border-top:1px solid #eee;padding-top:10px;font-size:10px;color:#aaa;"><div style="float:left;">Upstate AI &nbsp;|&nbsp; ben@up-state-ai.com &nbsp;|&nbsp; up-state-ai.com</div><div style="float:right;">Page '+(n-1)+' of '+n+'</div></div></div>';pages+='<div style="width:816px;min-height:1056px;background:#f7f4ea;position:relative;font-family:-apple-system,sans-serif;"><div style="background:#1a3a2e;padding:20px 40px;"><div style="font-size:11px;color:#ff6900;text-transform:uppercase;letter-spacing:0.1em;">About</div><div style="font-size:18px;font-weight:700;color:#f7f4ea;margin-top:4px;">Upstate AI</div></div><div style="padding:30px 40px;"><div style="font-size:14px;font-weight:600;color:#1a3a2e;margin-bottom:12px;">AI Consulting for Central New York Businesses</div><div style="font-size:12px;color:#555;line-height:1.7;margin-bottom:24px;">We work with manufacturers, healthcare organizations, and professional services firms to identify high-impact AI use cases, design implementation roadmaps, and deliver hands-on training.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;"><div style="background:#1a3a2e;color:#f7f4ea;border-radius:8px;padding:20px;text-align:center;"><div style="font-size:24px;margin-bottom:8px;">&#128269;</div><div style="font-size:12px;font-weight:600;">AI Readiness Assessment</div><div style="font-size:10px;color:rgba(247,244,234,0.7);margin-top:4px;">Understand where you stand today</div></div><div style="background:#1a3a2e;color:#f7f4ea;border-radius:8px;padding:20px;text-align:center;"><div style="font-size:24px;margin-bottom:8px;">&#128640;</div><div style="font-size:12px;font-weight:600;">Implementation Roadmap</div><div style="font-size:10px;color:rgba(247,244,234,0.7);margin-top:4px;">From concept to production</div></div></div><div style="background:#1a3a2e;border-radius:8px;padding:24px;display:flex;gap:24px;align-items:center;"><div style="flex:1;"><div style="font-size:14px;font-weight:700;color:#f7f4ea;margin-bottom:8px;">Let's Talk</div><div style="font-size:11px;color:rgba(247,244,234,0.7);line-height:1.8;">Book a free 30-minute consultation.</div><div style="font-size:11px;color:#ff6900;margin-top:8px;">ben@up-state-ai.com</div><div style="font-size:11px;color:#ff6900;">(315) 313-5998</div><div style="font-size:11px;color:#ff6900;">up-state-ai.com</div></div><div style="width:96px;height:96px;background:#fff;border-radius:8px;flex-shrink:0;overflow:hidden;"><img style="width:96px;height:96px;" crossOrigin="anonymous" src="https://api.qrserver.com/v1/create-qr-code/?size=96x96&data=https://up-state-ai.com" alt="QR"></div></div></div><div style="position:absolute;bottom:20px;left:40px;right:40px;border-top:1px solid #ccc;padding-top:10px;font-size:10px;color:#999;"><div style="float:left;">Upstate AI &nbsp;|&nbsp; ben@up-state-ai.com &nbsp;|&nbsp; up-state-ai.com</div><div style="float:right;">Page '+n+' of '+n+'</div></div></div>';c.innerHTML=pages;document.body.appendChild(c);return c;}
+// Model Marshal Script v2
+// Dispatch to multiple AI models, compare responses, export PDF
+
+const TEST_MODE = true; // Set false to query real models via OpenRouter
+
+var globalResults = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    var dispatchBtn = document.getElementById('dispatchBtn');
+    var generatePdfBtn = document.getElementById('generatePdfBtn');
+    var status = document.getElementById('status');
+    var testBanner = document.getElementById('testModeBanner');
+
+    // Show test mode banner and pre-populate
+    if (TEST_MODE) {
+        testBanner.style.display = 'block';
+        status.className = 'status-info';
+        status.innerHTML = 'TEST MODE — Using pre-populated sample data. Responses shown below.';
+        document.getElementById('synthesis').value = 'Key insight: Models agree on data infrastructure as the foundation but diverge on approach. Grok is most direct, Gemini most technical, GPT most structured, Llama most privacy-focused, Claude most balanced. Recommended: start with predictive maintenance.';
+        loadTestData();
+    } else {
+        status.innerHTML = 'Ready. Enter your OpenRouter API key and question, then click Dispatch.';
+    }
+
+    // Dispatch button
+    dispatchBtn.addEventListener('click', async function() {
+        var apiKey = document.getElementById('apiKey').value.trim();
+        var query = document.getElementById('query').value.trim();
+
+        if (!apiKey || !query) {
+            status.className = 'status-error';
+            status.innerHTML = 'Please enter both an API key and a question.';
+            return;
+        }
+
+        if (TEST_MODE) {
+            status.className = 'status-info';
+            status.innerHTML = 'TEST MODE — Using sample data. Toggle TEST_MODE=false to query real models.';
+            loadTestData();
+            return;
+        }
+
+        dispatchBtn.disabled = true;
+        dispatchBtn.innerHTML = 'Querying...';
+        status.className = 'status-info';
+        status.innerHTML = 'Inferring context and dispatching to models...';
+        globalResults = [];
+
+        var models = [
+            { name: 'Claude Sonnet 4.6', id: 'anthropic/claude-sonnet-4.6', shortId: 'Sonnet 4.6' },
+            { name: 'ChatGPT', id: 'openai/gpt-5.4', shortId: 'GPT-5.4' },
+            { name: 'Grok', id: 'x-ai/grok-4-fast', shortId: 'Grok 4 Fast' },
+            { name: 'Gemini', id: 'google/gemini-2.5-flash', shortId: 'Gemini 2.5 Flash' },
+            { name: 'Llama', id: 'meta-llama/llama-3.3-70b-instruct', shortId: 'Llama 3.3' }
+        ];
+
+        async function callModel(modelId, messages) {
+            var response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + apiKey,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': window.location.origin,
+                    'X-Title': 'Model Marshal'
+                },
+                body: JSON.stringify({ model: modelId, messages: messages, temperature: 0.7, max_tokens: 1200 })
+            });
+            if (!response.ok) {
+                var err = await response.text();
+                throw new Error('API error ' + response.status + ': ' + err);
+            }
+            var data = await response.json();
+            return data.choices[0].message.content.trim();
+        }
+
+        function getModelPrompt(modelName) {
+            var prompts = {
+                'Claude Sonnet 4.6': 'You are a nuanced expert consultant providing analysis with ethical awareness and practical constraints. Give concrete recommendations with implementation challenges noted.',
+                'ChatGPT': 'You are a strategic consultant using established frameworks. Provide systematic comprehensive analysis with specific examples and metrics.',
+                'Grok': 'You are a no-nonsense operator. Cut through hype, give direct practical advice based on field experience. Focus on measurable results.',
+                'Gemini': 'You are a technical expert with deep implementation knowledge. Provide specific technical guidance including timelines, budgets, and integration requirements.',
+                'Llama': 'You are an expert focused on open-source solutions and data sovereignty. Emphasize privacy, on-premise options, and vendor independence.'
+            };
+            return prompts[modelName] || 'You are a business strategy expert.';
+        }
+
+        try {
+            // Quick domain inference
+            var domain = await callModel('anthropic/claude-sonnet-4.6', [
+                { role: 'user', content: 'In 2-3 words, identify the main domain of this query: "' + query + '" — respond with only the domain.' }
+            ]);
+
+            for (var i = 0; i < models.length; i++) {
+                var model = models[i];
+                status.innerHTML = 'Querying ' + model.name + '...';
+                var messages = [
+                    { role: 'system', content: getModelPrompt(model.name) + ' Context: ' + domain },
+                    { role: 'user', content: query }
+                ];
+                var response = await callModel(model.id, messages);
+                globalResults.push({
+                    model: model.name,
+                    shortId: model.shortId,
+                    response: response,
+                    scores: 'Pending scoring...',
+                    systemPrompt: domain
+                });
+            }
+
+            renderResults(globalResults);
+            status.className = 'status-success';
+            status.innerHTML = 'All models responded. Review results below, add your synthesis, then generate PDF.';
+
+        } catch (err) {
+            status.className = 'status-error';
+            status.innerHTML = 'Error: ' + err.message;
+            console.error(err);
+        } finally {
+            dispatchBtn.disabled = false;
+            dispatchBtn.innerHTML = 'Dispatch to Models';
+        }
+    });
+
+    // PDF button
+    generatePdfBtn.addEventListener('click', function() {
+        var query = document.getElementById('query').value;
+        var synthesis = document.getElementById('synthesis').value;
+        var status = document.getElementById('status');
+
+        if (!globalResults || globalResults.length === 0) {
+            status.className = 'status-error';
+            status.innerHTML = 'No results to export. Click Dispatch first.';
+            return;
+        }
+
+        try {
+            generatePDF(globalResults, query, '', synthesis);
+            status.className = 'status-success';
+            status.innerHTML = 'PDF downloaded!';
+        } catch (err) {
+            status.className = 'status-error';
+            status.innerHTML = 'PDF error: ' + err.message;
+            console.error(err);
+        }
+    });
+});
+
+function loadTestData() {
+    var testResults = [
+        {
+            model: 'Claude Sonnet 4.6',
+            shortId: 'Sonnet 4.6',
+            response: 'AI adoption in manufacturing requires a phased approach that balances operational disruption with measurable ROI. Start with non-critical workflows to establish baselines before expanding to mission-critical processes. Key focus areas: predictive maintenance, quality control automation, and supply chain optimization.\n\nFirst step: identify your highest-frequency, highest-variance process. That is where ML models have the most to learn from and where you will see the fastest returns. Avoid trying to boil the ocean — pick one use case, prove it out, then expand methodically.',
+            scores: 'Specificity: 9/10 — Concrete process recommendations\nActionability: 9/10 — Clear starting point identified\nDomain Depth: 8/10 — Manufacturing-specific context'
+        },
+        {
+            model: 'GPT-5.4',
+            shortId: 'GPT-5.4',
+            response: 'For manufacturing leaders, AI readiness hinges on three pillars: data infrastructure maturity, workforce adaptability, and executive commitment. Companies should assess their current state before selecting specific AI use cases.\n\nPriority should be given to high-frequency, high-variance processes. The framework aligns with McKinsey\'s three-horizon model: automate (Horizon 1), optimize (Horizon 2), transform (Horizon 3). Budget ranges from $50K for scoped pilots to $500K+ for enterprise deployments.',
+            scores: 'Specificity: 7/10 — Framework-based but less detail\nActionability: 7/10 — Three-horizon model with budget ranges\nDomain Depth: 7/10 — McKinsey framework, solid but less field-specific'
+        },
+        {
+            model: 'Grok 4 Fast',
+            shortId: 'Grok 4 Fast',
+            response: 'Straight talk: most manufacturing AI projects fail because companies skip the boring groundwork. Get your data right first. Pick one pain point with clear ROI. Run it as an experiment, not a program. Scale only what proves itself.\n\nAvoid consulting pitches until you have your own house in order. Treat this as an engineering problem. Set measurable targets, hold people accountable, and do not move to the next phase until the current one has numbers.',
+            scores: 'Specificity: 8/10 — Direct, practical priorities\nActionability: 9/10 — Explicit steps: data first, pick one pain point\nDomain Depth: 8/10 — Field operator perspective'
+        },
+        {
+            model: 'Gemini 2.5 Flash',
+            shortId: 'Gemini 2.5 Flash',
+            response: 'Gemini notes strong alignment between AI capabilities and manufacturing needs in three areas: computer vision for defect detection, time-series forecasting for demand planning, and natural language interfaces for maintenance documentation.\n\nImplementation timelines: 6 weeks for packaged solutions to 6 months for custom integrations. Budget: $50K–$500K. Key risk: data quality — most manufacturers discover their historical data needs 3–6 months of cleanup before any model training can begin.',
+            scores: 'Specificity: 8/10 — Three specific AI areas with use cases\nActionability: 7/10 — Timeline and budget ranges provided\nDomain Depth: 8/10 — Technical knowledge, data quality insight'
+        },
+        {
+            model: 'Llama 3.3 70B',
+            shortId: 'Llama 3.3',
+            response: 'Open-source models like Llama offer a compelling alternative for manufacturers concerned about data privacy. Running LLMs on-premise means sensitive operational data never leaves the facility.\n\nTrade-off: internal ML expertise required for fine-tuning and deployment. Best for companies with strong data science teams already on staff. Fine-tuning-as-a-service providers can bridge the gap, though this adds dependency.',
+            scores: 'Specificity: 7/10 — Open-source alternative clearly positioned\nActionability: 6/10 — Trade-offs discussed, fewer concrete steps\nDomain Depth: 7/10 — Privacy and sovereignty focus'
+        }
+    ];
+
+    globalResults = testResults;
+    renderResults(testResults);
+    document.getElementById('synthesisCard').style.display = 'block';
+    document.getElementById('generatePdfBtn').style.display = 'inline-block';
+}
+
+function renderResults(results) {
+    var container = document.getElementById('modelsContainer');
+    var html = '';
+    for (var i = 0; i < results.length; i++) {
+        var r = results[i];
+        html += '<div class="model-card">' +
+            '<h3>' + r.shortId + '</h3>' +
+            '<div class="model-card .scores" style="color:#ffd700;font-size:0.8rem;margin:0.5rem 0;">' + r.scores + '</div>' +
+            '<div style="color:#c9d1d9;font-size:0.85rem;line-height:1.5;white-space:pre-wrap;">' + r.response + '</div>' +
+            '</div>';
+    }
+    container.innerHTML = html;
+    document.getElementById('synthesisCard').style.display = 'block';
+}
+
+// ============================================================
+// PDF Generation — Upstate AI branded report
+// ============================================================
+
+var COLORS = {
+    forest:    [26,  58,  46],
+    orange:    [255, 105,   0],
+    cream:     [247, 244, 234],
+    white:     [255, 255, 255],
+    darkText:  [40,   40,  40],
+    mutedText: [120, 120, 120]
+};
+
+function addFooter(doc, pageNum, totalPages) {
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.3);
+    doc.line(20, 284, 196, 284);
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 160);
+    doc.text('Upstate AI  |  ben@up-state-ai.com  |  (315) 313-5998  |  up-state-ai.com', 20, 289);
+    doc.text('Page ' + pageNum + ' of ' + totalPages, 196, 289, { align: 'right' });
+}
+
+function newPage(doc) { doc.addPage(); return 20; }
+
+
+function generatePDF(results, query, systemPrompt, synthesis) {
+    // Build HTML template
+    var pdfContainer = buildPDFHTML(results, query, synthesis);
+    var timestamp = new Date().toISOString().slice(0, 10);
+
+    // Create processing overlay
+    var overlay = document.createElement('div');
+    overlay.id = 'pdf-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1a3a2e; z-index: 10000;';
+    overlay.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: -apple-system, sans-serif;">' +
+        '<div style="width: 56px; height: 56px; border: 4px solid rgba(255,105,0,0.25); border-top-color: #ff6900; border-radius: 50%; animation: pdfspin 0.8s linear infinite; margin: 0 auto 28px;"></div>' +
+        '<div style="font-size: 22px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.02em;">Generating Your Report</div>' +
+        '<div style="font-size: 14px; color: rgba(247,244,234,0.6);">Preparing your Model Marshal report...</div>' +
+        '</div>' +
+        '<style>@keyframes pdfspin { to { transform: rotate(360deg); } }</style>';
+    document.body.appendChild(overlay);
+
+    // Give browser time to render
+    setTimeout(function() {
+        html2canvas(pdfContainer, { scale: 2, useCORS: true, allowTaint: true }).then(function(canvas) {
+            var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+            if (jsPDFLib) {
+                var pdf = new jsPDFLib({ unit: 'px', format: [816, 1056], orientation: 'portrait' });
+                var pageHeight = 1056;
+                var imgData = canvas.toDataURL('image/jpeg', 0.98);
+                var imgHeight = (canvas.height * 816) / canvas.width;
+                var heightLeft = imgHeight;
+                var position = 0;
+
+                pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft > 0) {
+                    position -= pageHeight;
+                    pdf.addPage([816, 1056]);
+                    pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                pdf.save('model-marshal-report-' + timestamp + '.pdf');
+            }
+            // Clean up
+            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
+            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }).catch(function(err) {
+            console.error('PDF generation error:', err);
+            alert('PDF generation failed: ' + err.message);
+            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
+            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        });
+    }, 3500);
+}
+
+function buildPDFHTML(results, query, synthesis) {
+    var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    var totalPages = results.length + 3;
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    // Create temporary container
+    var container = document.createElement('div');
+    container.id = 'pdf-report';
+    container.style.cssText = 'position: absolute; left: 0; top: 0; width: 816px; z-index: 9999;';
+
+    var pagesHTML = '';
+
+    // PAGE 1: COVER WITH LOGO AND USER INFO
+// Create the cover page with user information and title
+pagesHTML += `
+    <div class="pdf-page" style="width: 816px; height: 1056px; background: #1a3a2e; color: white; text-align: center; position: relative; font-family: -apple-system, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 80px 40px 60px 40px;">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAACWCAYAAADwkd5lAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABx0RVh0U29mdHdhcmUAQWRvYmUgRmlyZXdvcmtzIENTNui8sowAAAAWdEVYdENyZWF0aW9uIFRpbWUAMDMvMTQvMTkVqX2nAAACE0lEQVR4nO3TQQ0AIAwEsYv+OycdXBBIIOvnQABgZu5dAADwjIEAgBgIAIiBxUAmV9Zv0/z0AAAAASUVORK5CYII=" alt="Upstate AI" style="width: 300px; margin-bottom: 40px;">
+            <div style="width: 80px; height: 4px; background: #ff6900; margin: 30px auto;"></div>
+            <h1 style="font-size: 38px; font-weight: 700; margin: 30px 0; color: #f7f4ea; letter-spacing: -0.02em;">Model Marshal<br>Report</h1>
+            <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Name: ${escapeHtml(userInfo.name)}</div>
+            <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Company: ${escapeHtml(userInfo.company)}</div>
+            <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Email: ${escapeHtml(userInfo.email)}</div>
+            <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Domain: ${escapeHtml(userInfo.domain)}</div>
+            <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Title: ${escapeHtml(userInfo.title)}</div>
+            <div style="font-size: 16px; color: rgba(247,244,234,0.8); margin: 40px 0; line-height: 1.6;">${escapeHtml(query)}</div>
+            <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 60px;">${date}</div>
+        </div>
+        <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: rgba(247,244,234,0.8); border-top: 1px solid rgba(247,244,234,0.2); padding-top: 10px;">
+            <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
+            <div style="float: right;">Page 1 of ${totalPages}</div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>`;
+    pagesHTML += `
+    <div class="pdf-page" style="width: 816px; height: 1056px; background: #1a3a2e; color: white; text-align: center; position: relative; font-family: -apple-system, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 80px 40px 60px 40px;">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAACWCAYAAADwkd5lAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEgAACxIB0t1+/AAAABx0RVh0U29mdHdhcmUAQWRvYmUgRmlyZXdvcmtzIENTNui8sowAAAAWdEVYdENyZWF0aW9uIFRpbWUAMDMvMTQvMTkVqX2nAAACE0lEQVR4nO3TQQ0AIAwEsYv+OycdXBBIIOvnQABgZu5dAADwjIEAgBgIAIiBxUAmV9Zv0/z0AAAAASUVORK5CYII=" alt="Upstate AI" style="width: 300px; margin-bottom: 40px;">
+            <div style="width: 80px; height: 4px; background: #ff6900; margin: 30px auto;"></div>
+            <h1 style="font-size: 38px; font-weight: 700; margin: 30px 0; color: #f7f4ea; letter-spacing: -0.02em;">Model Marshal<br>Report</h1>
+<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Name: ${escapeHtml(userInfo.name)}</div>
+<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Company: ${escapeHtml(userInfo.company)}</div>
+<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Email: ${escapeHtml(userInfo.email)}</div>
+<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Domain: ${escapeHtml(userInfo.domain)}</div>
+<div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 5px;">Title: ${escapeHtml(userInfo.title)}</div>
+            <div style="font-size: 16px; color: rgba(247,244,234,0.8); margin: 40px 0; line-height: 1.6;">${escapeHtml(query)}</div>
+            <div style="font-size: 14px; color: rgba(247,244,234,0.7); margin-top: 60px;">${date}</div>
+        </div>
+        <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: rgba(247,244,234,0.8); border-top: 1px solid rgba(247,244,234,0.2); padding-top: 10px;">
+            <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
+            <div style="float: right;">Page 1 of ${totalPages}</div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>`;
+
+    // PAGES 2+: MODEL RESPONSES WITH BAR GRAPHS
+    for (var i = 0; i < results.length; i++) {
+        var result = results[i];
+        var pageNum = i + 2;
+        
+        // Extract scores from text
+        var scores = result.scores || '';
+        var specMatch = scores.match(/Specificity:\s*(\d+)/);
+        var actMatch = scores.match(/Actionability:\s*(\d+)/);
+        var depthMatch = scores.match(/Domain Depth:\s*(\d+)/);
+        var specScore = specMatch ? parseInt(specMatch[1]) : 7;
+        var actScore = actMatch ? parseInt(actMatch[1]) : 7;
+        var depthScore = depthMatch ? parseInt(depthMatch[1]) : 7;
+        
+        pagesHTML += `
+        <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
+            <div style="padding: 50px 40px;">
+                <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 700;">${escapeHtml(result.shortId || result.model)}</h2>
+                </div>
+                
+                <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 20px 0 10px 0;">Evaluation Scores</h3>
+                <div style="background: #f9f9f9; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Specificity</div>
+                        <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
+                            <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${specScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
+                                <span style="color: white; font-size: 12px; font-weight: 700;">${specScore}/10</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Actionability</div>
+                        <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
+                            <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${actScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
+                                <span style="color: white; font-size: 12px; font-weight: 700;">${actScore}/10</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Domain Depth</div>
+                        <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
+                            <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${depthScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
+                                <span style="color: white; font-size: 12px; font-weight: 700;">${depthScore}/10</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 20px 0 10px 0;">Response</h3>
+                <div style="background: #f7f4ea; border-left: 4px solid #ff6900; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
+                    <div style="color: #2a2a2a; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(result.response)}</div>
+                </div>
+            </div>
+            <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #e0e0e0; padding-top: 10px;">
+                <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
+                <div style="float: right;">Page ${pageNum} of ${totalPages}</div>
+                <div style="clear: both;"></div>
+            </div>
+        </div>`;
+    }
+
+    // SYNTHESIS PAGE WITH COMPARISON TABLE
+    var synthesisPageNum = totalPages - 1;
+    pagesHTML += `
+    <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
+        <div style="padding: 50px 40px;">
+            <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
+                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">Human Synthesis</h2>
+            </div>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 0 0 15px 0;">Model Comparison</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;">
+                <thead>
+                    <tr style="background: #1a3a2e; color: white;">
+                        <th style="padding: 10px; text-align: left; font-weight: 700;">Model</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Specificity</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Actionability</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Domain Depth</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    for (var ti = 0; ti < results.length; ti++) {
+        var tr = results[ti];
+        var bgColor = ti % 2 === 0 ? '#f7f4ea' : 'white';
+        var tScores = tr.scores || '';
+        var tSpec = (tScores.match(/Specificity:\s*(\d+)/) || [])[1] || '-';
+        var tAct = (tScores.match(/Actionability:\s*(\d+)/) || [])[1] || '-';
+        var tDepth = (tScores.match(/Domain Depth:\s*(\d+)/) || [])[1] || '-';
+        
+        pagesHTML += `
+                    <tr style="background: ${bgColor};">
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #1a3a2e;">${escapeHtml(tr.shortId || tr.model)}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: #2a2a2a;">${tSpec}/10</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: #2a2a2a;">${tAct}/10</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center; color: #2a2a2a;">${tDepth}/10</td>
+                    </tr>`;
+    }
+    
+    pagesHTML += `
+                </tbody>
+            </table>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 30px 0 15px 0;">Analysis</h3>
+            <div style="color: #2a2a2a; font-size: 13px; line-height: 1.8; white-space: pre-wrap;">${escapeHtml(synthesis || 'No synthesis provided.')}</div>
+        </div>
+        <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #e0e0e0; padding-top: 10px;">
+            <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
+            <div style="float: right;">Page ${synthesisPageNum} of ${totalPages}</div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>`;
+    
+    // FINAL PAGE: ABOUT UPSTATE AI (matching readiness assessment)
+    pagesHTML += `
+    <div class="pdf-page" style="width: 816px; height: 1056px; background: #f7f4ea; position: relative; font-family: -apple-system, sans-serif;">
+        <div style="padding: 50px 40px;">
+            <div style="background: #1a3a2e; color: white; padding: 15px 20px; margin: -50px -40px 30px -40px;">
+                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">About Upstate AI</h2>
+            </div>
+            
+            <p style="color: #1a3a2e; font-size: 15px; font-weight: 700; margin: 0 0 12px 0;">Upstate AI helps Central New York businesses harness artificial intelligence.</p>
+            <p style="color: #2a2a2a; font-size: 13px; line-height: 1.7; margin: 0 0 30px 0;">We work with manufacturers, healthcare organizations, and professional services firms to identify high-impact AI use cases, design implementation roadmaps, and deliver hands-on training. Our engagement model starts with a one-day workshop to assess readiness and ends with ongoing advisory support as AI initiatives scale.</p>
+            
+            <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 30px 0 15px 0;">Services</h3>
+            <table style="width: 100%; border-collapse: separate; border-spacing: 12px;">
+                <tr>
+                    <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Workshop</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">Half-day interactive session for leadership teams covering industry-specific use cases and hands-on opportunity scoring.</div>
+                    </td>
+                    <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Audit</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">Full operational analysis with data maturity evaluation and prioritized roadmap with ROI estimates.</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Execution</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">End-to-end project management from technical planning through vendor evaluation to deployment and training.</div>
+                    </td>
+                    <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Advisory</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">Monthly strategic check-ins, on-call guidance for AI decisions, and quarterly opportunity reviews.</div>
+                    </td>
+                </tr>
+            </table>
+            
+            <div style="background: #1a3a2e; padding: 20px; border-radius: 8px; margin-top: 30px; overflow: hidden;">
+                <div style="float: left; width: calc(100% - 180px);">
+                    <h3 style="color: white; font-size: 16px; font-weight: 700; margin: 0 0 12px 0;">Let's Talk</h3>
+                    <p style="color: #f7f4ea; font-size: 12px; line-height: 1.6; margin: 0 0 12px 0;">Book a free 30-minute consultation to discuss your AI readiness and next steps.</p>
+                    <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Email: ben@up-state-ai.com</p>
+                    <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Phone: (315) 313-5998</p>
+                    <p style="color: #f7f4ea; font-size: 12px; margin: 4px 0;">Web: up-state-ai.com</p>
+                </div>
+                <div style="float: right; width: 160px; text-align: center;">
+                    <div style="background: white; padding: 10px; border-radius: 6px; display: inline-block;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://up-state-ai.com" alt="QR Code" style="display: block; width: 140px; height: 140px;">
+                    </div>
+                </div>
+                <div style="clear: both;"></div>
+            </div>
+        </div>
+        <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #d0d0d0; padding-top: 10px;">
+            <div style="float: left;">Upstate AI | ben@up-state-ai.com | (315) 313-5998 | up-state-ai.com</div>
+            <div style="float: right;">Page ${totalPages} of ${totalPages}</div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>`;
+
+    container.innerHTML = pagesHTML;
+    document.body.appendChild(container);
+    return container;
+}
