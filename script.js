@@ -553,12 +553,12 @@ pagesHTML += `
                 </tr>
                 <tr>
                     <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
-                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Execution</div>
-                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">End-to-end project management from technical planning through vendor evaluation to deployment and training.</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Readiness Assessment</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">Understand where you stand today with a comprehensive assessment of your organization's AI readiness, infrastructure, and opportunities.</div>
                     </td>
                     <td style="width: 50%; background: white; padding: 18px; border-radius: 8px; vertical-align: top;">
-                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">AI Advisory</div>
-                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">Monthly strategic check-ins, on-call guidance for AI decisions, and quarterly opportunity reviews.</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #1a3a2e; margin-bottom: 8px;">Implementation Roadmap</div>
+                        <div style="font-size: 12px; line-height: 1.6; color: #556b5e;">From concept to production with a phased implementation plan tailored to your team and budget.</div>
                     </td>
                 </tr>
             </table>
