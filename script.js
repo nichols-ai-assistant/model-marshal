@@ -1,75 +1,126 @@
-function generateAssessmentPDF(lead, scores) {
-    // Build HTML template
-    var pdfContainer = buildPDFHTML(lead, scores);
-    var companyName = (lead.company || lead.name || 'Assessment').replace(/[^a-zA-Z0-9]+/g, '_');
+// Model Marshal Script v3
+// Dispatch to multiple AI models, compare responses, export PDF
 
-    // Create processing overlay
-    var overlay = document.createElement('div');
-    overlay.id = 'pdf-overlay';
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1a3a2e; z-index: 10000;';
-    overlay.innerHTML = '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: -apple-system, sans-serif;">' +
-        '<div style="width: 56px; height: 56px; border: 4px solid rgba(255,105,0,0.25); border-top-color: #ff6900; border-radius: 50%; animation: pdfspin 0.8s linear infinite; margin: 0 auto 28px;"></div>' +
-        '<div style="font-size: 22px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.02em;">Generating Your Report</div>' +
-        '<div style="font-size: 14px; color: rgba(247,244,234,0.6);">Preparing your assessment report...</div>' +
-        '</div>' +
-        '<style>@keyframes pdfspin { to { transform: rotate(360deg); } }</style>';
-    document.body.appendChild(overlay);
+const TEST_MODE = true; // Set false to query real models via OpenRouter
 
-    // Give browser time to render the container and overlay
-    setTimeout(function() {
-        html2canvas(pdfContainer, { scale: 2, useCORS: true, allowTaint: true }).then(function(canvas) {
-            var jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-            if (jsPDFLib) {
-                var pdf = new jsPDFLib({ unit: 'px', format: [816, 1056], orientation: 'portrait' });
-                var pageHeight = 1056;
-                var imgData = canvas.toDataURL('image/jpeg', 0.98);
-                var imgHeight = (canvas.height * 816) / canvas.width;
-                var heightLeft = imgHeight;
-                var position = 0;
+var globalResults = [];
 
-                pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
-                heightLeft -= pageHeight;
+document.addEventListener('DOMContentLoaded', function() {
+    var dispatchBtn = document.getElementById('dispatchBtn');
+    var generatePdfBtn = document.getElementById('generatePdfBtn');
+    var status = document.getElementById('status');
+    var testBanner = document.getElementById('testModeBanner');
 
-                while (heightLeft > 0) {
-                    position -= pageHeight;
-                    pdf.addPage([816, 1056]);
-                    pdf.addImage(imgData, 'JPEG', 0, position, 816, imgHeight);
-                    heightLeft -= pageHeight;
-                }
+    // Show test mode banner and pre-populate
+    if (TEST_MODE) {
+        testBanner.style.display = 'block';
+        status.className = 'status-info';
+        status.innerHTML = 'TEST MODE — Using pre-populated sample data. Responses shown below.';
+        document.getElementById('query').value = 'How can AI improve operational efficiency?';
+        document.getElementById('apiKey').value = 'YOUR_TEST_API_KEY';
+        loadTestData();
+    } else {
+        status.innerHTML = 'Ready. Enter your OpenRouter API key and question, then click Dispatch.';
+    }
 
-                pdf.save(companyName + '_AI_Readiness_Report.pdf');
+    // Dispatch button
+    dispatchBtn.addEventListener('click', async function() {
+        var apiKey = document.getElementById('apiKey').value.trim();
+        var query = document.getElementById('query').value.trim();
+
+        if (!apiKey || !query) {
+            status.className = 'status-error';
+            status.innerHTML = 'Please enter both an API key and a question.';
+            return;
+        }
+
+        if (TEST_MODE) {
+            status.className = 'status-info';
+            status.innerHTML = 'Using sample data. Toggle TEST_MODE=false to query real models.';
+            loadTestData();
+            return;
+        }
+
+        dispatchBtn.disabled = true;
+        dispatchBtn.innerHTML = 'Querying...';
+        status.className = 'status-info';
+        status.innerHTML = 'Inferring context and dispatching to models...';
+        globalResults = [];
+
+        var models = [
+            { name: 'Claude Sonnet 4.6', id: 'anthropic/claude-sonnet-4.6', shortId: 'Sonnet 4.6' },
+            { name: 'ChatGPT', id: 'openai/gpt-5.4', shortId: 'GPT-5.4' },
+            { name: 'Grok', id: 'x-ai/grok-4-fast', shortId: 'Grok 4 Fast' },
+            { name: 'Gemini', id: 'google/gemini-3-flash', shortId: 'Gemini 3 Flash' },
+            { name: 'Llama', id: 'meta-llama/llama-3.3-70b-instruct', shortId: 'Llama 3.3' }
+        ];
+
+        async function callModel(modelId, messages) {
+            var response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + apiKey,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': window.location.origin,
+                    'X-Title': 'Model Marshal'
+                },
+                body: JSON.stringify({ model: modelId, messages: messages, temperature: 0.7, max_tokens: 1200 })
+            });
+            if (!response.ok) {
+                var err = await response.text();
+                throw new Error('API error ' + response.status + ': ' + err);
             }
-            // Clean up
-            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        }).catch(function(err) {
-            console.error('PDF generation error:', err);
-            alert('PDF generation failed: ' + err.message);
-            if (pdfContainer && pdfContainer.parentNode) pdfContainer.parentNode.removeChild(pdfContainer);
-            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        });
-    }, 3500);
-    return;
-}
+            var data = await response.json();
+            return data.choices[0].message.content.trim();
+        }
 
-function buildPDFHTML(lead, scores) {
-    var date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        function getModelPrompt(modelName) {
+            var prompts = {
+                'Claude Sonnet 4.6': 'You are a nuanced expert consultant providing analysis with ethical awareness and practical constraints. Give concrete recommendations with implementation challenges noted.',
+                'ChatGPT': 'You are a strategic consultant using established frameworks. Provide systematic comprehensive analysis with specific examples and metrics.',
+                'Grok': 'You are a no-nonsense operator. Cut through hype, give direct practical advice based on field experience. Focus on measurable results.',
+                'Gemini': 'You are a technical expert with deep implementation knowledge. Provide specific technical guidance including timelines, budgets, and integration requirements.',
+                'Llama': 'You are an expert focused on open-source solutions and data sovereignty. Emphasize privacy, on-premise options, and vendor independence.'
+            };
+            return prompts[modelName] || 'You are a business strategy expert.';
+        }
 
-    // Create a temporary container in the DOM (hidden)
-    var container = document.createElement('div');
-    container.id = 'pdf-report';
-    container.style.cssText = 'position: absolute; left: 0; top: 0; width: 816px; z-index: 9999;';
+        try {
+            // Quick domain inference
+            var domain = await callModel('anthropic/claude-sonnet-4.6', [
+                { role: 'user', content: 'In 2-3 words, identify the main domain of this query: "' + query + '" — respond with only the domain.' }
+            ]);
 
-    container.innerHTML = `
-    <div class='pdf-page'>
-        <h1 style='text-align: center;'>AI Readiness Assessment Results</h1>
-        <div style='margin: 0 auto;'>
-            <p style='text-align:center; font-size: 20px;'>${lead.name}</p>
-            <p style='text-align:center; font-size: 18px;'>${lead.company}</p>
-            <p style='text-align:center; font-size: 16px;'>${date}</p>
-        </div>
-    </div>`;
+            for (var i = 0; i < models.length; i++) {
+                var model = models[i];
+                status.innerHTML = 'Querying ' + model.name + '...';
+                var messages = [
+                    { role: 'system', content: getModelPrompt(model.name) + ' Context: ' + domain },
+                    { role: 'user', content: query }
+                ];
+                var response = await callModel(model.id, messages);
+                globalResults.push({ model: model.shortId, response: response });
+            }
 
-    document.body.appendChild(container);
-    return container;
-}
+            // Trigger PDF generation after responses are collected
+            generateAssessmentPDF({ name: lead.name, company: lead.company }, globalResults);
+ 
+        } catch (e) {
+            console.error('Error during model dispatch:', e);
+            status.className = 'status-error';
+            status.innerHTML = 'Error during model dispatch: ' + e.message;
+        } finally {
+            dispatchBtn.disabled = false;
+            dispatchBtn.innerHTML = 'Dispatch';
+        }
+    });
+
+    // PDF generation button click
+    generatePdfBtn.addEventListener('click', function() {
+        if (globalResults.length === 0) {
+            alert('No results to generate PDF. You must dispatch first.');
+            return;
+        }
+        generateAssessmentPDF();
+    });
+});
