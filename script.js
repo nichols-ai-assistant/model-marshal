@@ -5,6 +5,42 @@ const TEST_MODE = true; // Set false to query real models via OpenRouter
 
 var globalResults = [];
 
+// Scoring function: 4-criterion evaluation (Knowledge, Reasoning, Alignment, Bias)
+function scoreResponse(response, query) {
+    var scores = {
+        knowledge: 0,  // Facts, citations, no hallucinations (0-10)
+        reasoning: 0,  // Shows work vs. just asserts (0-10)
+        alignment: 0,  // Answers the question vs. reframes (0-10)
+        bias: 0,       // Neutral vs. ideological (0-10)
+        total: 0
+    };
+    
+    var text = response.toLowerCase();
+    var queryWords = query.toLowerCase().split(/\s+/);
+    
+    // Knowledge Accuracy: hedge words = good (acknowledge uncertainty)
+    var hedges = ['likely', 'probably', 'typically', 'generally', 'often', 'may', 'might', 'could'];
+    var hedgeCount = hedges.filter(function(h) { return text.includes(h); }).length;
+    scores.knowledge = Math.min(10, 6 + hedgeCount); // Base 6, +1 per hedge up to 10
+    
+    // Reasoning Depth: logical connectors, numbered steps
+    var reasoning = ['because', 'therefore', 'however', 'first', 'second', 'third', 'step 1', 'step 2'];
+    var reasoningCount = reasoning.filter(function(r) { return text.includes(r); }).length;
+    scores.reasoning = Math.min(10, 5 + reasoningCount); // Base 5, +1 per connector
+    
+    // Alignment: query keyword overlap (did it answer the question?)
+    var overlap = queryWords.filter(function(w) { return text.includes(w) && w.length > 3; }).length;
+    scores.alignment = Math.min(10, Math.floor(overlap * 1.5)); // ~1.5 pts per keyword
+    
+    // Bias: penalize ideological keywords (neutral = high score)
+    var biasWords = ['always wrong', 'never acceptable', 'must', 'unethical', 'immoral'];
+    var biasCount = biasWords.filter(function(b) { return text.includes(b); }).length;
+    scores.bias = Math.max(0, 10 - (biasCount * 2)); // -2 per bias word
+    
+    scores.total = scores.knowledge + scores.reasoning + scores.alignment + scores.bias;
+    return scores;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     var dispatchBtn = document.getElementById('dispatchBtn');
     var generatePdfBtn = document.getElementById('generatePdfBtn');
@@ -160,31 +196,31 @@ function loadTestData() {
             model: 'Claude Sonnet 4.6',
             shortId: 'Sonnet 4.6',
             response: 'AI adoption in manufacturing requires a phased approach that balances operational disruption with measurable ROI. Start with non-critical workflows to establish baselines before expanding to mission-critical processes. Key focus areas: predictive maintenance, quality control automation, and supply chain optimization.\n\nFirst step: identify your highest-frequency, highest-variance process. That is where ML models have the most to learn from and where you will see the fastest returns. Avoid trying to boil the ocean — pick one use case, prove it out, then expand methodically.',
-            scores: 'Specificity: 9/10 — Concrete process recommendations\nActionability: 9/10 — Clear starting point identified\nDomain Depth: 8/10 — Manufacturing-specific context'
+scores: { knowledge: 9, reasoning: 9, alignment: 10, bias: 10, total: 38 }
         },
         {
             model: 'GPT-5.4',
             shortId: 'GPT-5.4',
             response: 'For manufacturing leaders, AI readiness hinges on three pillars: data infrastructure maturity, workforce adaptability, and executive commitment. Companies should assess their current state before selecting specific AI use cases.\n\nPriority should be given to high-frequency, high-variance processes. The framework aligns with McKinsey\'s three-horizon model: automate (Horizon 1), optimize (Horizon 2), transform (Horizon 3). Budget ranges from $50K for scoped pilots to $500K+ for enterprise deployments.',
-            scores: 'Specificity: 7/10 — Framework-based but less detail\nActionability: 7/10 — Three-horizon model with budget ranges\nDomain Depth: 7/10 — McKinsey framework, solid but less field-specific'
+scores: { knowledge: 8, reasoning: 7, alignment: 9, bias: 9, total: 33 }
         },
         {
             model: 'Grok 4 Fast',
             shortId: 'Grok 4 Fast',
             response: 'Straight talk: most manufacturing AI projects fail because companies skip the boring groundwork. Get your data right first. Pick one pain point with clear ROI. Run it as an experiment, not a program. Scale only what proves itself.\n\nAvoid consulting pitches until you have your own house in order. Treat this as an engineering problem. Set measurable targets, hold people accountable, and do not move to the next phase until the current one has numbers.',
-            scores: 'Specificity: 8/10 — Direct, practical priorities\nActionability: 9/10 — Explicit steps: data first, pick one pain point\nDomain Depth: 8/10 — Field operator perspective'
+scores: { knowledge: 7, reasoning: 8, alignment: 10, bias: 10, total: 35 }
         },
         {
             model: 'Gemini 2.5 Flash',
             shortId: 'Gemini 2.5 Flash',
             response: 'Gemini notes strong alignment between AI capabilities and manufacturing needs in three areas: computer vision for defect detection, time-series forecasting for demand planning, and natural language interfaces for maintenance documentation.\n\nImplementation timelines: 6 weeks for packaged solutions to 6 months for custom integrations. Budget: $50K–$500K. Key risk: data quality — most manufacturers discover their historical data needs 3–6 months of cleanup before any model training can begin.',
-            scores: 'Specificity: 8/10 — Three specific AI areas with use cases\nActionability: 7/10 — Timeline and budget ranges provided\nDomain Depth: 8/10 — Technical knowledge, data quality insight'
+scores: { knowledge: 9, reasoning: 8, alignment: 9, bias: 10, total: 36 }
         },
         {
             model: 'Llama 3.3 70B',
             shortId: 'Llama 3.3',
             response: 'Open-source models like Llama offer a compelling alternative for manufacturers concerned about data privacy. Running LLMs on-premise means sensitive operational data never leaves the facility.\n\nTrade-off: internal ML expertise required for fine-tuning and deployment. Best for companies with strong data science teams already on staff. Fine-tuning-as-a-service providers can bridge the gap, though this adds dependency.',
-            scores: 'Specificity: 7/10 — Open-source alternative clearly positioned\nActionability: 6/10 — Trade-offs discussed, fewer concrete steps\nDomain Depth: 7/10 — Privacy and sovereignty focus'
+scores: { knowledge: 8, reasoning: 7, alignment: 8, bias: 9, total: 32 }
         }
     ];
 
@@ -199,9 +235,18 @@ function renderResults(results) {
     var html = '';
     for (var i = 0; i < results.length; i++) {
         var r = results[i];
+        var sc = r.scores;
+        var scoreHtml = '<div style="margin:0.5rem 0;font-size:0.85rem;">' +
+            '<div style="margin:0.3rem 0;"><span style="color:#4CAF50;">Knowledge:</span> ' + sc.knowledge + '/10</div>' +
+            '<div style="margin:0.3rem 0;"><span style="color:#2196F3;">Reasoning:</span> ' + sc.reasoning + '/10</div>' +
+            '<div style="margin:0.3rem 0;"><span style="color:#FF9800;">Alignment:</span> ' + sc.alignment + '/10</div>' +
+            '<div style="margin:0.3rem 0;"><span style="color:#9C27B0;">Bias-Free:</span> ' + sc.bias + '/10</div>' +
+            '<div style="margin:0.5rem 0;font-weight:bold;color:#ffd700;">Total: ' + sc.total + '/40</div>' +
+            '</div>';
+        
         html += '<div class="model-card">' +
             '<h3>' + r.shortId + '</h3>' +
-            '<div class="model-card .scores" style="color:#ffd700;font-size:0.8rem;margin:0.5rem 0;">' + r.scores + '</div>' +
+            scoreHtml +
             '<div style="color:#c9d1d9;font-size:0.85rem;line-height:1.5;white-space:pre-wrap;">' + r.response + '</div>' +
             '</div>';
     }
