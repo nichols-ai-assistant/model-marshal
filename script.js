@@ -413,9 +413,9 @@ pagesHTML += `
             
             <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 0 0 10px 0;">Evaluation Methodology</h3>
             <div style="color: #555; font-size: 12px; line-height: 1.8;">
-                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Specificity:</strong> Measures concrete details vs. generic statements. Higher scores indicate precise, measurable recommendations.</p>
-                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Actionability:</strong> Evaluates clarity of next steps and implementation guidance. Higher scores mean ready-to-execute advice.</p>
-                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Domain Depth:</strong> Assesses expert-level insights and industry knowledge. Higher scores reflect specialized expertise.</p>
+                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Knowledge:</strong> Measures domain expertise, concrete details, and factual accuracy. Higher scores indicate precise, well-informed recommendations.</p>
+                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Reasoning:</strong> Evaluates logical structure, causal analysis, and clarity of next steps. Higher scores mean well-reasoned, actionable advice.</p>
+                <p style="margin: 8px 0;"><strong style="color: #1a3a2e;">Alignment:</strong> Assesses relevance to the prompt and business context. Higher scores reflect on-target, industry-aware responses.</p>
             </div>
         </div>
         <div style="position: absolute; bottom: 20px; left: 40px; right: 40px; font-size: 11px; color: #556b5e; border-top: 1px solid #e0e0e0; padding-top: 10px;">
@@ -430,14 +430,22 @@ pagesHTML += `
         var result = results[i];
         var pageNum = i + 3;
         
-        // Extract scores from text
-        var scores = result.scores || '';
-        var specMatch = scores.match(/Specificity:\s*(\d+)/);
-        var actMatch = scores.match(/Actionability:\s*(\d+)/);
-        var depthMatch = scores.match(/Domain Depth:\s*(\d+)/);
-        var specScore = specMatch ? parseInt(specMatch[1]) : 7;
-        var actScore = actMatch ? parseInt(actMatch[1]) : 7;
-        var depthScore = depthMatch ? parseInt(depthMatch[1]) : 7;
+        // Extract scores - handle both object and legacy string formats
+        var sc = result.scores || {};
+        var specScore, actScore, depthScore;
+        if (typeof sc === 'object' && sc !== null) {
+            specScore = sc.knowledge || 7;
+            actScore = sc.reasoning || 7;
+            depthScore = sc.alignment || 7;
+        } else {
+            var scoreStr = String(sc);
+            specScore = (scoreStr.match(/Specificity:\s*(\d+)/) || [])[1] || 7;
+            actScore = (scoreStr.match(/Actionability:\s*(\d+)/) || [])[1] || 7;
+            depthScore = (scoreStr.match(/Domain Depth:\s*(\d+)/) || [])[1] || 7;
+        }
+        specScore = parseInt(specScore);
+        actScore = parseInt(actScore);
+        depthScore = parseInt(depthScore);
         
         pagesHTML += `
         <div class="pdf-page" style="width: 816px; height: 1056px; background: white; position: relative; font-family: -apple-system, sans-serif;">
@@ -449,7 +457,7 @@ pagesHTML += `
                 <h3 style="color: #1a3a2e; font-size: 16px; font-weight: 700; margin: 20px 0 10px 0;">Evaluation Scores</h3>
                 <div style="background: #f9f9f9; padding: 20px; border-radius: 6px; margin-bottom: 20px;">
                     <div style="margin-bottom: 15px;">
-                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Specificity</div>
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Knowledge</div>
                         <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
                             <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${specScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
                                 <span style="color: white; font-size: 12px; font-weight: 700;">${specScore}/10</span>
@@ -457,7 +465,7 @@ pagesHTML += `
                         </div>
                     </div>
                     <div style="margin-bottom: 15px;">
-                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Actionability</div>
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Reasoning</div>
                         <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
                             <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${actScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
                                 <span style="color: white; font-size: 12px; font-weight: 700;">${actScore}/10</span>
@@ -465,7 +473,7 @@ pagesHTML += `
                         </div>
                     </div>
                     <div>
-                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Domain Depth</div>
+                        <div style="font-size: 13px; color: #2a2a2a; margin-bottom: 5px; font-weight: 600;">Alignment</div>
                         <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative;">
                             <div style="background: linear-gradient(90deg, #ff6900, #ff8533); width: ${depthScore * 10}%; height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;">
                                 <span style="color: white; font-size: 12px; font-weight: 700;">${depthScore}/10</span>
@@ -501,9 +509,9 @@ pagesHTML += `
                 <thead>
                     <tr style="background: #1a3a2e; color: white;">
                         <th style="padding: 10px; text-align: left; font-weight: 700;">Model</th>
-                        <th style="padding: 10px; text-align: center; font-weight: 700;">Specificity</th>
-                        <th style="padding: 10px; text-align: center; font-weight: 700;">Actionability</th>
-                        <th style="padding: 10px; text-align: center; font-weight: 700;">Domain Depth</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Knowledge</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Reasoning</th>
+                        <th style="padding: 10px; text-align: center; font-weight: 700;">Alignment</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -511,10 +519,18 @@ pagesHTML += `
     for (var ti = 0; ti < results.length; ti++) {
         var tr = results[ti];
         var bgColor = ti % 2 === 0 ? '#f7f4ea' : 'white';
-        var tScores = tr.scores || '';
-        var tSpec = (tScores.match(/Specificity:\s*(\d+)/) || [])[1] || '-';
-        var tAct = (tScores.match(/Actionability:\s*(\d+)/) || [])[1] || '-';
-        var tDepth = (tScores.match(/Domain Depth:\s*(\d+)/) || [])[1] || '-';
+        var tSc = tr.scores || {};
+        var tSpec, tAct, tDepth;
+        if (typeof tSc === 'object' && tSc !== null) {
+            tSpec = tSc.knowledge || '-';
+            tAct = tSc.reasoning || '-';
+            tDepth = tSc.alignment || '-';
+        } else {
+            var tStr = String(tSc);
+            tSpec = (tStr.match(/Specificity:\s*(\d+)/) || [])[1] || '-';
+            tAct = (tStr.match(/Actionability:\s*(\d+)/) || [])[1] || '-';
+            tDepth = (tStr.match(/Domain Depth:\s*(\d+)/) || [])[1] || '-';
+        }
         
         pagesHTML += `
                     <tr style="background: ${bgColor};">
